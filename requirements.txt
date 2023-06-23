@@ -1,0 +1,10 @@
+numpy
+torch
+torchvision
+tqdm
+torchsummary
+configspace==0.6.1
+scikit-learn
+smac>=2.0.0
+pandas
+thop
