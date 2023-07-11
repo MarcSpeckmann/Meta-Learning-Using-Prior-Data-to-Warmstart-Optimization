@@ -119,32 +119,6 @@ def load_deep_woods(
     return dimensions, train_dataset, test_dataset
 
 
-def load_fashion_mnist(
-    datadir: Path,
-    transform: Iterable[Callable] = (),
-) -> tuple[Dimensions, FashionMNIST, FashionMNIST]:
-    img_width = 28
-    img_height = 28
-    dimensions = (1, img_width, img_height)
-
-    pre_processing = transforms.Compose([transforms.ToTensor(), *transform])
-
-    train = FashionMNIST(
-        root=str(datadir),
-        train=True,
-        download=True,
-        transform=pre_processing,
-    )
-
-    test = FashionMNIST(
-        root=str(datadir),
-        train=False,
-        download=True,
-        transform=pre_processing,
-    )
-    return dimensions, train, test
-
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="MF example using BOHB.")
@@ -162,4 +136,3 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     load_deep_woods(datadir=HERE / "deepweedsx")
-    load_fashion_mnist(datadir=HERE / "FashionMNIST")
