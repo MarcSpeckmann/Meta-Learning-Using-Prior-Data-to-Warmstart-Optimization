@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
-import time
 import logging
+import time
+from typing import Any, Mapping
 
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
+from dask.distributed import get_worker
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from utils import StatTracker, accuracy, get_output_shape
-from dask.distributed import get_worker
-
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ class Model(nn.Module):
             conv_channels.append((layer_in, layer_out))
 
         layers = []
-        for (in_channels, out_channels) in conv_channels:
+        for in_channels, out_channels in conv_channels:
             conv = conv_block(
                 in_channels,
                 out_channels,
@@ -187,7 +186,9 @@ class Model(nn.Module):
 
             # itr.set_description(f"(=> Training) Loss: {loss_tracker.avg:.4f}")
             if self.my_worker_id:
-                logger.debug(f"(=> Worker:{self.my_worker_id} Training) Loss: {loss_tracker.avg:.4f}")
+                logger.debug(
+                    f"(=> Worker:{self.my_worker_id} Training) Loss: {loss_tracker.avg:.4f}"
+                )
             else:
                 logger.debug(f"(=> Training) Loss: {loss_tracker.avg:.4f}")
 
@@ -222,7 +223,9 @@ class Model(nn.Module):
 
                 # t.set_description(f"(=> Test) Score: {score_tracker.avg:.4f}")
             if self.my_worker_id:
-                logger.debug(f"(=> Worker:{self.my_worker_id}) Accuracy: {score_tracker.avg:.4f}")
+                logger.debug(
+                    f"(=> Worker:{self.my_worker_id}) Accuracy: {score_tracker.avg:.4f}"
+                )
             else:
                 logger.debug(f"Accuracy: {score_tracker.avg:.4f}")
 

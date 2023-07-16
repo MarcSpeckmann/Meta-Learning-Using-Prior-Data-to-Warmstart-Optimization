@@ -11,20 +11,18 @@ ml.informatik.uni-freiburg.de/~biedenka/dwx_compressed.tar.gz
 """
 from __future__ import annotations
 
-from typing import Callable, Iterable
-from typing_extensions import TypeAlias
-
 import argparse
-import tarfile
 import logging
 import os
 import shutil
+import tarfile
 import urllib.request
 from pathlib import Path
+from typing import Callable, Iterable
 
 from torchvision import transforms
-from torchvision.datasets import ImageFolder, FashionMNIST
-
+from torchvision.datasets import FashionMNIST, ImageFolder
+from typing_extensions import TypeAlias
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +54,7 @@ def _unpack_tarball(
 
 
 def _download_deepweeds(
-    url: str = DEEP_WOODS_LINK,
-    dest: Path = DEEP_WOODS_DEFAULT_TARBALL_PATH
+    url: str = DEEP_WOODS_LINK, dest: Path = DEEP_WOODS_DEFAULT_TARBALL_PATH
 ) -> Path:
     if dest.exists():
         logging.debug(f"Already found file at {dest}")
@@ -120,7 +117,6 @@ def load_deep_woods(
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="MF example using BOHB.")
     parser.add_argument(
         "--base_dir",

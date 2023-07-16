@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from torch.autograd import Variable
+
 import torch
+from torch.autograd import Variable
 
 
 @dataclass
