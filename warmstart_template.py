@@ -1,35 +1,36 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
 import argparse
 import json
+import logging
+from dataclasses import dataclass
+from functools import partial
+from pathlib import Path
+from typing import Iterable, Iterator, Literal
+
+import numpy as np
+import pandas as pd
+import torch
 from ConfigSpace import (
+    Categorical,
     Configuration,
     ConfigurationSpace,
-    Float,
-    Integer,
     Constant,
+    Float,
     InCondition,
-    Categorical,
+    Integer,
 )
-import pandas as pd
-import numpy as np
-from functools import partial
-from typing import Iterator, Literal, Iterable
-from pathlib import Path
 from dask.distributed import get_worker
 from sklearn.model_selection import StratifiedKFold
-from smac import Scenario, HyperparameterOptimizationFacade
-from smac.runhistory import TrialValue
+from smac import HyperparameterOptimizationFacade, Scenario
 from smac.initial_design import AbstractInitialDesign
+from smac.runhistory import TrialValue
 from smac.runhistory.dataclasses import TrialInfo
 from torch.utils.data import DataLoader, Subset
-from datasets import load_deep_woods
-import torch
-from cnn import Model
 from torchvision.datasets import ImageFolder
 
-import logging
+from cnn import Model
+from datasets import load_deep_woods
 
 logger = logging.getLogger(__name__)
 
