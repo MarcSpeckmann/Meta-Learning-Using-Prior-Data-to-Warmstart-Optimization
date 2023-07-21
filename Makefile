@@ -1,5 +1,5 @@
 run:
-	conda run --no-capture-output -n automl python3 warmstart_template.py
+	conda run --no-capture-output -n automl python warmstart_template.py
 
 install:
 	conda create -n automl python=3.10
@@ -10,7 +10,7 @@ uninstall:
 	conda remove -n automl --all
 
 download-data:
-	conda run --no-capture-output -n automl python3 datasets.py	
+	conda run --no-capture-output -n automl python datasets.py	
 
 remove-data:
 	rm -r data
