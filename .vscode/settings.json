@@ -4,5 +4,9 @@
     "python.linting.lintOnSave": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": true
-    }
+    },
+    "pylint.args": [
+        "--generate-members=torch.*",
+        "--disable=C0114",
+    ],
 }
