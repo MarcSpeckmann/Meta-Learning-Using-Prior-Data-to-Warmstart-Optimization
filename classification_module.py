@@ -148,9 +148,10 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         """
         outputs = self.forward(batch[0])
         loss = self.loss(outputs, batch[1])
+        acc = self.accuracy(outputs, batch[1])[0]
         self.log("train_loss", loss, sync_dist=True)
-        self.log("train_acc", self.accuracy(outputs, batch[1])[0], sync_dist=True)
-        return loss
+        self.log("train_acc", , sync_dist=True)
+        return {"loss": loss, "acc": acc}
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0) -> STEP_OUTPUT:
         """Operates on a single batch of data from the validation set. In this step you'd might generate examples
@@ -170,8 +171,8 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         outputs = self.forward(batch[0])
         loss = self.loss(outputs, batch[1])
         self.log("val_loss", loss, sync_dist=True)
-        acc = self.accuracy(outputs, batch[1])
-        self.log("val_accuracy", acc[0], sync_dist=True)
+        acc = self.accuracy(outputs, batch[1])[0]
+        self.log("val_accuracy", acc, sync_dist=True)
         self.validation_step_outputs.append(
             {
                 "val_loss": loss,

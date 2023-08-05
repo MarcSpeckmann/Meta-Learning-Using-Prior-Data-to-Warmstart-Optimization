@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.loggers import TensorBoardLogger
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import (
@@ -76,7 +75,6 @@ def objective(config):
     logging.info("Create trainer")
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
-        logger=TensorBoardLogger(LOGS_PATH),
         callbacks=callbacks,
         deterministic=True,
     )
@@ -97,7 +95,7 @@ def main():
         "n_channels_fc_0": tune.randint(32, 513),
         "n_channels_fc_1": tune.randint(16, 513),
         "n_channels_fc_2": tune.randint(16, 513),
-        "batch_size": tune.randint(1, 128),
+        "batch_size": tune.randint(1, 513),
         "learning_rate_init": tune.uniform(1e-5, 1),
         "kernel_size": tune.choice([3]),
         "dropout_rate": tune.choice([0.2]),
@@ -163,12 +161,12 @@ def main():
 if __name__ == "__main__":
     PROJECT_NAME = "Meta-Learning-Using-Prior-Data-to-Warmstart-Optimization"
     EXPERIMENT_NAME = "test_exp"
-    RESUME = True
+    RESUME = False
     DATASET_NAME = "deepweedsx_balanced"
     SEED = 42
-    N_TRIALS = 1
+    N_TRIALS = 150
     WALLTIME_LIMIT = 6 * 60 * 60
-    MAX_EPOCHS = 1
+    MAX_EPOCHS = 20
     IMG_SIZE = 32
     CV_SPLITS = 3
     DATASET_WORKER_PER_TRIAL = 4

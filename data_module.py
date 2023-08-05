@@ -14,8 +14,6 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
-logger = logging.getLogger(__name__)
-
 DEEP_WOODS_LINK = "http://ml.informatik.uni-freiburg.de/~biedenka/dwx_compressed.tar.gz"
 DEEP_WOODS_DEFAULT_DIR = "deepweedsx"
 DEEP_WOODS_DEFAULT_TARBALL_PATH = "processed_data.tar"
