@@ -63,12 +63,3 @@ def config_from_metadata(
         raise RuntimeError("No configs found that are representable in the space")
 
     return configs, metrics
-
-
-if __name__ == "__main__":
-    print(
-        config_from_metadata(
-            "/Users/marc/Documents/Uni/12._Semester/Automated Machine Learning/Meta-Learning-Using-Prior-Data-to-Warmstart-Optimization/metadata/deepweedsx_balanced-epochs-trimmed.csv",
-            cs,
-        )
-    )
