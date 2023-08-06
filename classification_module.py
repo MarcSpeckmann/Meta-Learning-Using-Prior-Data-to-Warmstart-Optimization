@@ -150,7 +150,7 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         loss = self.loss(outputs, batch[1])
         acc = self.accuracy(outputs, batch[1])[0]
         self.log("train_loss", loss, sync_dist=True)
-        self.log("train_acc", , sync_dist=True)
+        self.log("train_acc", acc, sync_dist=True)
         return {"loss": loss, "acc": acc}
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0) -> STEP_OUTPUT:
