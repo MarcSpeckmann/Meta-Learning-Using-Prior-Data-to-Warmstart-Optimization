@@ -5,7 +5,7 @@ import tarfile
 import tempfile
 import urllib.request
 from pathlib import Path
-from typing import Callable, Iterable, Tuple
+from typing import Tuple
 
 import pytorch_lightning as pl
 import torch
@@ -27,13 +27,8 @@ class DeepWeedsDataModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        batch_size: int,
-        img_size: Tuple[int, int] = (16, 16),
-        balanced: bool = True,
-        train_val_split: float = 0.1,
-        num_workers: int = 1,
-        transform: Iterable[Callable] = (),
-        seed: int = 42,
+        *args,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -42,7 +37,6 @@ class DeepWeedsDataModule(pl.LightningDataModule):
             [
                 transforms.Resize(self.hparams.img_size),
                 transforms.ToTensor(),
-                *self.hparams.transform,
             ]
         )
 

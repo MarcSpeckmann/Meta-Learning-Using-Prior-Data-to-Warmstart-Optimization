@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any
 
 import pytorch_lightning as pl
 import torch
@@ -17,29 +17,12 @@ class DeepWeedsClassificationModule(pl.LightningModule):
 
     def __init__(
         self,
-        n_conv_layers: int,
-        use_bn: bool,
-        global_avg_pooling: bool,
-        n_channels_conv_0: int,
-        n_channels_conv_1: int,
-        n_channels_conv_2: int,
-        n_fc_layers: int,
-        n_channels_fc_0: int,
-        n_channels_fc_1: int,
-        n_channels_fc_2: int,
-        learning_rate_init: float,
-        kernel_size: int,
-        dropout_rate: float,
-        num_classes: int,
-        input_shape: Tuple[int, int, int],
-        seed: int,
+        *args,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
         pl.seed_everything(self.hparams.seed)
-
-        self.hparams.use_bn = bool(self.hparams.use_bn)
-        self.hparams.global_avg_pooling = bool(self.hparams.global_avg_pooling)
 
         self.loss = torch.nn.CrossEntropyLoss()
         self.validation_step_outputs = []
