@@ -47,7 +47,11 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         self.test_dataset = None
         # To allow the use of multiple workers for data loading, we need to use a temporary directory.
         # Especially when using multiple GPUs, the data loading can become a bottleneck.
-        self.temp_dir = tempfile.TemporaryDirectory()
+        if self.hparams.load_data_on_every_trial:
+            self.temp_dir = tempfile.TemporaryDirectory()
+            self.data_path = Path(self.temp_dir.name)
+        else:
+            self.data_path = self.hparams.data_path
 
     def prepare_data(self):
         """Use this to download and prepare data. Downloading and saving data with multiple processes (distributed
@@ -57,7 +61,7 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         .. warning:: DO NOT set state to the model (use ``setup`` instead)
             since this is NOT called on every device
         """
-        datadir = Path(os.path.join(self.temp_dir.name, DEEP_WOODS_DEFAULT_DIR))
+        datadir = Path(os.path.join(self.data_path, DEEP_WOODS_DEFAULT_DIR))
         tar_path = Path(os.path.join(datadir, DEEP_WOODS_DEFAULT_TARBALL_PATH))
 
         if not datadir.exists():
@@ -78,7 +82,7 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         """
         # Load the dataset and split into train and test sets
         train_dataset, test_dataset = self.load_deep_woods(
-            datadir=Path(os.path.join(self.temp_dir.name, DEEP_WOODS_DEFAULT_DIR)),
+            datadir=Path(os.path.join(self.data_path, DEEP_WOODS_DEFAULT_DIR)),
             balanced=self.hparams.balanced,
         )
 
@@ -215,8 +219,8 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         Args:
             stage: either ``'fit'``, ``'validate'``, ``'test'``, or ``'predict'``
         """
-        # Delete the temporary directory
-        self.temp_dir.cleanup()
+        if self.hparams.load_data_on_every_trial:
+            self.temp_dir.cleanup()
         return super().teardown(stage)
 
     def _unpack_tarball(

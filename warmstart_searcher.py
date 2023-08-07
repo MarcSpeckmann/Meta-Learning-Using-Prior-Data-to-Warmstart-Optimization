@@ -36,6 +36,8 @@ class WarmstartSearcher(Searcher):
             metadata_path, config_space
         )
 
+        # TODO: use the warmstart_configs and warmstart_results to shrink/extend provided search space
+
     def suggest(self, trial_id: str) -> Optional[Dict]:
         """Queries the algorithm to retrieve the next set of parameters.
 
@@ -77,6 +79,8 @@ class WarmstartSearcher(Searcher):
 
         # Sample a configuration from the search space
         # TODO: Implement a custom sampling method
+        # Important: Pay attention to seeding, when using randomness
+        # Otherwise, reproducibility is not guaranteed
         configuration = self.search_space.sample_configuration()
 
         # Append the sampled configuration to the list of configurations.

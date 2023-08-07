@@ -11,5 +11,6 @@ uninstall:
 
 clean:
 	rm -r ray_tune
+	rm -r data
 
 .PHONY: run, install, uninstall, clean

@@ -46,6 +46,8 @@ def objective(config: Configuration) -> None:
         balanced=BALANCED_DATASET,
         train_val_split=TRAIN_VAL_SPLIT,
         num_workers=DATASET_WORKER_PER_TRIAL,
+        data_path=DATA_PATH,
+        load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
         seed=SEED,
     )
 
@@ -240,6 +242,8 @@ def main() -> None:
             balanced=BALANCED_DATASET,
             train_val_split=TRAIN_VAL_SPLIT,
             num_workers=DATASET_WORKER_PER_TRIAL,
+            data_path=DATA_PATH,
+            load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
             seed=SEED,
         )
 
@@ -272,8 +276,10 @@ if __name__ == "__main__":
     OPTIMIZATION_METRIC = "val_accuracy_mean"  # Metric to optimize for.
     OPTIMIZATION_MODE = "max"  # Mode to optimize for.
     KEEP_N_BEST_MODELS = 2  # Number of best models to keep.
+    LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
 
     HERE = Path(__file__).parent.absolute()  # Path to this file.
+    DATA_PATH = HERE / "data"  # Path to the data directory.
     RAY_TUNE_DIR = HERE / "ray_tune"  # Path to the ray tune directory.
     RAY_EXPERIMENT_DIR = (
         RAY_TUNE_DIR / EXPERIMENT_NAME
