@@ -9,4 +9,7 @@ install:
 uninstall:
 	conda remove -n automl --all
 
-.PHONY: run, install, uninstall
+clean:
+	rm -r ray_tune
+
+.PHONY: run, install, uninstall, clean

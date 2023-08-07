@@ -1,70 +1,76 @@
-import gc
-import logging
 from pathlib import Path
+from typing import Any, Dict
 
 import pytorch_lightning as pl
 import torch
+from ConfigSpace import (
+    Categorical,
+    Configuration,
+    ConfigurationSpace,
+    Constant,
+    Float,
+    InCondition,
+    Integer,
+)
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import (
     TuneReportCallback,
     TuneReportCheckpointCallback,
 )
+from ray.tune.schedulers import ASHAScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
 from warmstart_searcher import WarmstartSearcher
 
 
-def objective(config):
-    """_summary_
+def objective(config: Configuration) -> None:
+    """The objective function for the hyperparameter optimization.
 
     Args:
-        config (_type_): _description_
+        config (Configuration): The configuration of the current trial.
     """
-    logging.info("Preparing for training")
-    gc.collect()
-    torch.cuda.empty_cache()
+    # Setting the precision to float32 for the matrix multiplication
+    # This is needed for the GPU to work properly
     torch.set_float32_matmul_precision("high")
+    # Setting a seed for reproducibility.
+    pl.seed_everything(SEED, workers=True)
 
-    logging.info("Loading dataset")
+    # Creating our data module. The data module is responsible for loading the data and creating the data loaders.
+    # As input we need to provide the configuration of the current trials and some standard configs.
+    # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningDataModule.html#lightning.pytorch.core.LightningDataModule
     data_model = DeepWeedsDataModule(
-        batch_size=config["batch_size"],
+        **config,
         img_size=(IMG_SIZE, IMG_SIZE),
         balanced=BALANCED_DATASET,
         train_val_split=TRAIN_VAL_SPLIT,
         num_workers=DATASET_WORKER_PER_TRIAL,
-        seed=config["seed"],
+        seed=SEED,
     )
 
-    logging.info("Loading model")
+    # Creating our model. The model is responsible for the training and validation of the model.
+    # As input we need to provide the configuration of the current trials and some standard configs.
+    # https://lightning.ai/docs/pytorch/stable/common/lightning_module.html
     model = DeepWeedsClassificationModule(
-        n_conv_layers=config["n_conv_layers"],
-        use_bn=config["use_bn"],
-        global_avg_pooling=config["global_avg_pooling"],
-        n_channels_conv_0=config["n_channels_conv_0"],
-        n_channels_conv_1=config["n_channels_conv_1"],
-        n_channels_conv_2=config["n_channels_conv_2"],
-        n_fc_layers=config["n_fc_layers"],
-        n_channels_fc_0=config["n_channels_fc_0"],
-        n_channels_fc_1=config["n_channels_fc_1"],
-        n_channels_fc_2=config["n_channels_fc_2"],
-        learning_rate_init=config["learning_rate_init"],
-        kernel_size=config["kernel_size"],
-        dropout_rate=config["dropout_rate"],
+        **config,
         num_classes=NUM_CLASSES,
         input_shape=(3, IMG_SIZE, IMG_SIZE),
-        seed=config["seed"],
+        seed=SEED,
     )
 
-    logging.info("Create callbacks")
+    # Creating the callbacks for the training. The TuneReportCallback is responsible for reporting the metrics to Ray Tune.
+    # We need this callbacks to be able to use a (ASHA)Scheduler.
+    # The TuneReportCheckpointCallback is responsible for saving the model checkpoints.
     callbacks = [
+        # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.integration.pytorch_lightning.TuneReportCallback.html#ray.tune.integration.pytorch_lightning.TuneReportCallback
         TuneReportCallback(
             [
                 OPTIMIZATION_METRIC,
             ],
             on="validation_end",
         ),
+        # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.integration.pytorch_lightning.TuneReportCheckpointCallback.html#ray.tune.integration.pytorch_lightning.TuneReportCheckpointCallback
         TuneReportCheckpointCallback(
             metrics={OPTIMIZATION_METRIC},
             filename=CHECKPOINT_FILE_NAME,
@@ -72,44 +78,111 @@ def objective(config):
         ),
     ]
 
-    logging.info("Create trainer")
+    # The trainer is responsible for the training and validation of the model.
+    # As input we need to provide the model, the data module and the callbacks.
+    # We also set the max_epochs to the maximum number of epochs we want to train.
+    # The deterministic flag is set to True to ensure reproducibility.
+    # https://lightning.ai/docs/pytorch/stable/common/trainer.html#
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         callbacks=callbacks,
         deterministic=True,
     )
 
-    logging.info("Start training")
+    # Starting the training of the model.
     trainer.fit(model, datamodule=data_model)
 
 
-def main():
-    config_space = {
-        "n_conv_layers": tune.randint(1, 4),
-        "use_bn": tune.randint(0, 2),
-        "global_avg_pooling": tune.randint(0, 2),
-        "n_channels_conv_0": tune.randint(32, 513),
-        "n_channels_conv_1": tune.randint(16, 513),
-        "n_channels_conv_2": tune.randint(16, 513),
-        "n_fc_layers": tune.randint(1, 4),
-        "n_channels_fc_0": tune.randint(32, 513),
-        "n_channels_fc_1": tune.randint(16, 513),
-        "n_channels_fc_2": tune.randint(16, 513),
-        "batch_size": tune.randint(1, 513),
-        "learning_rate_init": tune.uniform(1e-5, 1),
-        "kernel_size": tune.choice([3]),
-        "dropout_rate": tune.choice([0.2]),
-        "seed": tune.choice([SEED]),
-    }
+def main() -> None:
+    # Defining the search space
+    # This serves only as an example of how you can manually define a Configuration Space
+    # To illustrate different parameter types;
+    # we use continuous, integer and categorical parameters.
+    config_space = ConfigurationSpace(
+        space={
+            "n_conv_layers": Integer("n_conv_layers", (1, 3), default=3),
+            "use_BN": Categorical("use_BN", [True, False], default=True),
+            "global_avg_pooling": Categorical(
+                "global_avg_pooling", [True, False], default=True
+            ),
+            "n_channels_conv_0": Integer(
+                "n_channels_conv_0", (32, 512), default=512, log=True
+            ),
+            "n_channels_conv_1": Integer(
+                "n_channels_conv_1", (16, 512), default=512, log=True
+            ),
+            "n_channels_conv_2": Integer(
+                "n_channels_conv_2", (16, 512), default=512, log=True
+            ),
+            "n_fc_layers": Integer("n_fc_layers", (1, 3), default=3),
+            "n_channels_fc_0": Integer(
+                "n_channels_fc_0", (32, 512), default=512, log=True
+            ),
+            "n_channels_fc_1": Integer(
+                "n_channels_fc_1", (16, 512), default=512, log=True
+            ),
+            "n_channels_fc_2": Integer(
+                "n_channels_fc_2", (16, 512), default=512, log=True
+            ),
+            "batch_size": Integer("batch_size", (1, 1000), default=200, log=True),
+            "learning_rate_init": Float(
+                "learning_rate_init",
+                (1e-5, 1.0),
+                default=1e-3,
+                log=True,
+            ),
+            "kernel_size": Constant("kernel_size", 3),
+            "dropout_rate": Constant("dropout_rate", 0.2),
+        },
+        seed=SEED,
+    )
 
+    # Add multiple conditions on hyperparameters at once:
+    config_space.add_conditions(
+        [
+            InCondition(
+                config_space["n_channels_conv_2"], config_space["n_conv_layers"], [3]
+            ),
+            InCondition(
+                config_space["n_channels_conv_1"], config_space["n_conv_layers"], [2, 3]
+            ),
+            InCondition(
+                config_space["n_channels_fc_2"], config_space["n_fc_layers"], [3]
+            ),
+            InCondition(
+                config_space["n_channels_fc_1"], config_space["n_fc_layers"], [2, 3]
+            ),
+        ]
+    )
+
+    # Defining the tuning settings. The WarmstartSearcher is the part we are implementing for the project.
+    # The ASHA scheduler is similar to the HyperBand scheduler, but it prunes trials more aggressive.
+    # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.schedulers.AsyncHyperBandScheduler.html#ray.tune.schedulers.AsyncHyperBandScheduler
+    # The TuneConfig is the main configuration object for the Tune library.
+    # Metric is the metric we want to optimize, mode is the direction we want to optimize in. In this case we want to maximize the accuracy.
+    # The num_samples is the number of trials we want to run. The time_budget_s is the time limit for the experiment.
+    # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.TuneConfig.html#ray-tune-tuneconfig
     tune_config = tune.TuneConfig(
-        search_alg=WarmstartSearcher(metadata_path=METADATA_FILE),
+        search_alg=WarmstartSearcher(
+            config_space=config_space,
+            metric=OPTIMIZATION_METRIC,
+            mode=OPTIMIZATION_MODE,
+            metadata_path=METADATA_FILE,
+        ),
+        scheduler=ASHAScheduler(
+            time_attr="training_iteration", max_t=2 * MAX_EPOCHS
+        ),  # Its two times the max_epochs because ray tune counts the validation step as well
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
         time_budget_s=WALLTIME_LIMIT,
     )
 
+    # Defining the run configuration. The checkpoint_config is used to save the best models.
+    # So we can load them later for testing our best performing model
+    # We again define our metric and mode for the checkpointing of the best models.
+    # https://docs.ray.io/en/latest/ray-air/api/doc/ray.air.RunConfig.html#ray.air.RunConfig
+    # https://docs.ray.io/en/latest/ray-air/api/doc/ray.air.CheckpointConfig.html#ray.air.CheckpointConfig
     run_config = RunConfig(
         checkpoint_config=CheckpointConfig(
             num_to_keep=KEEP_N_BEST_MODELS,
@@ -120,75 +193,98 @@ def main():
         name=EXPERIMENT_NAME,
     )
 
+    # Defining the trainable. The trainable is the function that is called for each trial.
+    # The tune.with_resources is used to define the resources we want to use for each trial.
+    # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.with_resources.html#ray-tune-with-resources
     trainable = tune.with_resources(
         objective, resources={"CPU": CPU_PER_TRIAL, "GPU": CUDAS_PER_TRIAL}
     )
 
+    # Defining the tuner. The tuner is responsible for the execution of the trials.
+    # If we want to resume a previous experiment we can do that by setting the RESUME flag to True.
+    # As input we need to provide the trainable, the tune_config, the param_space and the run_config.
+    # https://docs.ray.io/en/latest/tune/api/execution.html#tuner
     if not RESUME:
         tuner = tune.Tuner(
             trainable=trainable,
             tune_config=tune_config,
-            param_space=config_space,
             run_config=run_config,
         )
     else:
         tuner = tune.Tuner.restore(str(RAY_EXPERIMENT_DIR), trainable=trainable)
 
-    result_grid = tuner.fit()
+    # Starting the hyperparameter tuning.
+    # Or loading the best hyperparameters if we are not training.
+    if TRAIN:
+        result_grid = tuner.fit()
+    else:
+        result_grid = tuner.get_results()
     best_result = result_grid.get_best_result()
 
     print("Best hyperparameters found were: ", best_result.config)
 
-    checkpoint_path = best_result.best_checkpoints[0][0].path
+    # Testing the best model from the hyperparameter tuning.
+    if TEST:
+        # Getting the checkpoint path to the best model.
+        checkpoint_path = best_result.best_checkpoints[0][0].path
 
-    t_model = DeepWeedsClassificationModule.load_from_checkpoint(
-        checkpoint_path + "/" + CHECKPOINT_FILE_NAME
-    )
+        # Loading the best model using the checkpoint path.
+        t_model = DeepWeedsClassificationModule.load_from_checkpoint(
+            checkpoint_path + "/" + CHECKPOINT_FILE_NAME
+        )
 
-    d_model = DeepWeedsDataModule(
-        batch_size=best_result.config["batch_size"],
-        img_size=(IMG_SIZE, IMG_SIZE),
-        balanced=BALANCED_DATASET,
-        train_val_split=TRAIN_VAL_SPLIT,
-        num_workers=DATASET_WORKER_PER_TRIAL,
-        seed=best_result.config["seed"],
-    )
+        # Building the data module with the best hyperparameters.
+        d_model = DeepWeedsDataModule(
+            **best_result.config,
+            img_size=(IMG_SIZE, IMG_SIZE),
+            balanced=BALANCED_DATASET,
+            train_val_split=TRAIN_VAL_SPLIT,
+            num_workers=DATASET_WORKER_PER_TRIAL,
+            seed=SEED,
+        )
 
-    t_trainer = pl.Trainer()
-    t_trainer.test(model=t_model, datamodule=d_model)
+        # Testing the best model using the trainer
+        t_trainer = pl.Trainer(logger=False)
+        t_trainer.test(model=t_model, datamodule=d_model)
 
 
 if __name__ == "__main__":
-    PROJECT_NAME = "Meta-Learning-Using-Prior-Data-to-Warmstart-Optimization"
-    EXPERIMENT_NAME = "test_exp"
-    RESUME = False
-    DATASET_NAME = "deepweedsx_balanced"
-    SEED = 42
-    N_TRIALS = 150
-    WALLTIME_LIMIT = 6 * 60 * 60
-    MAX_EPOCHS = 20
-    IMG_SIZE = 32
-    CV_SPLITS = 3
-    DATASET_WORKER_PER_TRIAL = 4
-    CUDAS_PER_TRIAL = 0
-    CPU_PER_TRIAL = 4
-    TRAIN_VAL_SPLIT = 0.1
-    BALANCED_DATASET = 1
-    NUM_CLASSES = 8
-    OPTIMIZATION_METRIC = "val_accuracy_mean"
-    OPTIMIZATION_MODE = "max"
-    KEEP_N_BEST_MODELS = 2
+    EXPERIMENT_NAME = "Test_exp"  # Name of folder where the experiment is saved
+    TRAIN = (
+        True  # If True, the experiment is trained, else the best results are loaded.
+    )
+    TEST = True  # If True, the best model is tested.
+    RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
+    SEED = 42  # Seed for reproducibility
+    N_TRIALS = 2  # Number of trials to run. If -1, the number of trials is infinite.
+    WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
+    MAX_EPOCHS = 20  # Maximum number of epochs to train for.
+    IMG_SIZE = 32  # Image size to use for the model. (IMG_SIZE, IMG_SIZE)
+    MAX_CONCURRENT_TRIALS = 1  # Maximum number of trials to run concurrently.
+    DATASET_WORKER_PER_TRIAL = 4  # Number of workers to use for DataLoader.
+    CUDAS_PER_TRIAL = 0  # Number of GPUs to use for each trial.
+    CPU_PER_TRIAL = 2  # Number of CPUs to use for each trial.
+    TRAIN_VAL_SPLIT = 0.1  # Validation split to use for the dataset.
+    BALANCED_DATASET = (
+        True  # If 1, the dataset is balanced. Else the dataset is not balanced.
+    )
+    NUM_CLASSES = 8  # Number of classes in the dataset.
+    OPTIMIZATION_METRIC = "val_accuracy_mean"  # Metric to optimize for.
+    OPTIMIZATION_MODE = "max"  # Mode to optimize for.
+    KEEP_N_BEST_MODELS = 2  # Number of best models to keep.
 
-    HERE = Path(__file__).parent.absolute()
-    DATA_PATH = HERE / "data"
-    LOGS_PATH = HERE / "tb_logs"
-    RAY_TUNE_DIR = HERE / "ray_tune"
-    RAY_EXPERIMENT_DIR = RAY_TUNE_DIR / EXPERIMENT_NAME
-    CHECKPOINT_FILE_NAME = "checkpoint"
-    METADATA_FILE = HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
+    HERE = Path(__file__).parent.absolute()  # Path to this file.
+    RAY_TUNE_DIR = HERE / "ray_tune"  # Path to the ray tune directory.
+    RAY_EXPERIMENT_DIR = (
+        RAY_TUNE_DIR / EXPERIMENT_NAME
+    )  # Path to the experiment directory.
+    CHECKPOINT_FILE_NAME = "checkpoint"  # Name of the checkpoint file.
+    METADATA_FILE = (
+        HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
+    )  # Path to the metadata file for warmstarting.
 
+    # Setting the seed for reproducibility of ray tune
     pl.seed_everything(seed=SEED, workers=True)
-    torch.set_float32_matmul_precision("high")
 
     # TODO: implement cross validation (How should we use successive halving, when using cv)
     main()

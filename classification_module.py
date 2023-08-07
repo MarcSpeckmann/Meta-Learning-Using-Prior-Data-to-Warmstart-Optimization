@@ -9,23 +9,24 @@ from torch.autograd import Variable
 
 
 class DeepWeedsClassificationModule(pl.LightningModule):
-    """_summary_
-
-    Args:
-        pl.LightningModule: _description_
+    """
+    PyTorch Lightning module for the DeepWeeds classification task.
+    This module implements a convolutional neural network with a variable number of convolutional and fully connected layers.
     """
 
     def __init__(
         self,
         *args,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__()
+        # Saves all arguments passed to the constructor as hyperparameters (self.hparams)
         self.save_hyperparameters()
-        pl.seed_everything(self.hparams.seed)
 
         self.loss = torch.nn.CrossEntropyLoss()
         self.validation_step_outputs = []
+
+        # Code from the project template for building the model
 
         in_channels = self.hparams.input_shape[0]
 
@@ -52,7 +53,7 @@ class DeepWeedsClassificationModule(pl.LightningModule):
                 out_channels,
                 kernel_size=self.hparams.kernel_size,
                 padding=(self.hparams.kernel_size - 1) // 2,
-                use_bn=self.hparams.use_bn,
+                use_bn=self.hparams.use_BN,
             )
             pool = nn.MaxPool2d(kernel_size=2, stride=2)
             layers.extend([conv, pool])
@@ -94,6 +95,8 @@ class DeepWeedsClassificationModule(pl.LightningModule):
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         """Same as :meth:`torch.nn.Module.forward`.
+
+        Code from the project template.
 
         Args:
             *args: Whatever you decide to pass into the forward method.
@@ -156,6 +159,7 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         self.log("val_loss", loss, sync_dist=True)
         acc = self.accuracy(outputs, batch[1])[0]
         self.log("val_accuracy", acc, sync_dist=True)
+        # Save the outputs to compute the mean at the end of the epoch
         self.validation_step_outputs.append(
             {
                 "val_loss": loss,
@@ -165,6 +169,12 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         return {"val_loss": loss, "val_acc": acc}
 
     def on_validation_epoch_end(self):
+        """Called when the val epoch ends.
+        Calculates the mean loss and accuracy over all validation batches.
+
+        Returns:
+            _type_: _description_
+        """
         avg_loss = torch.Tensor(
             [x["val_loss"] for x in self.validation_step_outputs]
         ).mean()
@@ -229,6 +239,8 @@ class DeepWeedsClassificationModule(pl.LightningModule):
     ) -> nn.Sequential:
         """Simple convolutional block.
 
+        Code from the project template.
+
         :param in_channels:
             number of input channels
         :param out_channels:
@@ -263,7 +275,16 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         *layers: torch.nn.Sequential | torch.nn.Module,
         shape: tuple[int, int, int],
     ) -> int:
-        """Calculate the output dimensions of a stack of conv layer"""
+        """Calculate the output dimensions of a stack of conv layer.
+
+        Code from the project template.
+
+        Args:
+            shape (tuple[int, int, int]): _description_
+
+        Returns:
+            int: _description_
+        """
         channels, w, h = shape
         var = Variable(torch.rand(1, channels, w, h))
 
@@ -279,6 +300,18 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         return n_size
 
     def accuracy(self, output: torch.Tensor, target: torch.Tensor, topk=(1,)):
+        """Computes the accuracy over the k top predictions for the specified values of k.
+
+        Code from the project template.
+
+        Args:
+            output (torch.Tensor): _description_
+            target (torch.Tensor): _description_
+            topk (tuple, optional): _description_. Defaults to (1,).
+
+        Returns:
+            _type_: _description_
+        """
         maxk = max(topk)
         batch_size = target.size(0)
 

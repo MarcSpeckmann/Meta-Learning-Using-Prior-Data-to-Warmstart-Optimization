@@ -1,34 +1,40 @@
-import csv
-import locale
 from typing import Dict, List, Optional
 
+from ConfigSpace import ConfigurationSpace
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
 
+from warmstart_config import config_from_metadata
+
 
 class WarmstartSearcher(Searcher):
-    """Searcher that uses a warmstart configuration."""
+    """
+    Searcher that uses a warmstart configuration.
+    It is a derived class of Searcher, which is a base class for
+    writting custom search algorithms for Tune.
+    https://docs.ray.io/en/latest/tune/api/doc/ray.tune.search.Searcher.html#ray.tune.search.Searcher
+    """
 
     def __init__(
         self,
         metadata_path: str,
-        metric="val_accuracy_mean",
-        mode="max",
+        config_space: ConfigurationSpace,
+        metric: str,
+        mode: str,
         max_concurrent: int = 0,
-    ):
+    ) -> None:
         super().__init__(metric=metric, mode=mode)
-        self.search_space = {}
+        self.search_space = config_space
         self.warmstart_configs = []
         self.configurations = {}
         self.results = {}
         self._max_concurrent = max_concurrent
         self.running = set()
 
-        with open(
-            metadata_path, "r", encoding=locale.getpreferredencoding()
-        ) as csvfile:
-            reader = csv.DictReader(csvfile)
-            self.warmstart_configs = list(reader)
+        # Load the metadata file and convert it to a list of configurations
+        self.warmstart_configs, self.warmstart_results = config_from_metadata(
+            metadata_path, config_space
+        )
 
     def suggest(self, trial_id: str) -> Optional[Dict]:
         """Queries the algorithm to retrieve the next set of parameters.
@@ -44,6 +50,7 @@ class WarmstartSearcher(Searcher):
                 searcher for this step.
 
         """
+        # Check if the search space is defined.
         if not self.search_space:
             raise RuntimeError(
                 UNDEFINED_SEARCH_SPACE.format(
@@ -51,6 +58,7 @@ class WarmstartSearcher(Searcher):
                 )
             )
 
+        # Check if the metric and mode are defined.
         if not self._metric or not self._mode:
             raise RuntimeError(
                 UNDEFINED_METRIC_MODE.format(
@@ -58,19 +66,20 @@ class WarmstartSearcher(Searcher):
                 )
             )
 
+        # Check if is alowed to suggest a new configuration.
+        # Its allowed if the number of running trials is less than the max_concurrent
         max_concurrent = (
             self._max_concurrent if self._max_concurrent > 0 else float("inf")
         )
+
         if len(self.running) >= max_concurrent:
             return None
 
-        configuration = {}
-        for key, value in self.search_space.items():
-            try:
-                configuration[key] = value.sample()
-            except AttributeError:
-                configuration[key] = value
+        # Sample a configuration from the search space
+        # TODO: Implement a custom sampling method
+        configuration = self.search_space.sample_configuration()
 
+        # Append the sampled configuration to the list of configurations.
         self.configurations[trial_id] = configuration
         self.running.add(trial_id)
 
@@ -168,6 +177,8 @@ class WarmstartSearcher(Searcher):
         """
         self._max_concurrent = max_concurrent
         return True
+
+    # Optional section #
 
     def add_evaluated_point(
         self,

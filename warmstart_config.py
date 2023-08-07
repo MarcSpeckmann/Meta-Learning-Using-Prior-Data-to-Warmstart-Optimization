@@ -5,6 +5,7 @@ from typing import List, Tuple
 import pandas as pd
 from ConfigSpace import Configuration, ConfigurationSpace
 
+# Mapping from metadata column names to their types
 METADATA_CONFIG_COLUMNS = {
     "config:n_conv_layers": int,
     "config:use_BN": bool,
@@ -27,11 +28,23 @@ def config_from_metadata(
     path: Path,
     space: ConfigurationSpace,
 ) -> Tuple[List[Configuration], List[float]]:
+    """Reads a metadata file and returns a list of configurations and metrics.
+    Code is a subset of the template code for the project.
+
+    Args:
+        path (Path): Path to the metadata file
+        space (ConfigurationSpace): Configuration space to validate configs against
+
+    Raises:
+        RuntimeError: If no configs are found that are representable in the space
+
+    Returns:
+        Tuple[List[Configuration], List[float]]: Returns Configurations in format of space and their corresponding metrics
+    """
     metadata = (
         pd.read_csv(path)
         .astype(METADATA_CONFIG_COLUMNS)
         .rename(columns=lambda c: c.replace("config:", ""))
-        .rename(columns={"use_BN": "use_bn"})
         .drop(
             columns=[
                 "dataset",
@@ -45,9 +58,6 @@ def config_from_metadata(
     )
 
     config_columns = [c.replace("config:", "") for c in METADATA_CONFIG_COLUMNS]
-    for idx in range(len(config_columns)):
-        if config_columns[idx] == "use_BN":
-            config_columns[idx] = "use_bn"
 
     configs = []
     metrics = []

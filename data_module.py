@@ -20,9 +20,10 @@ DEEP_WOODS_DEFAULT_TARBALL_PATH = "processed_data.tar"
 
 
 class DeepWeedsDataModule(pl.LightningDataModule):
-    """TODO:
-    Args:
-        pl.LightningDataModule: _description_
+    """
+    This class is a PyTorch Lightning DataModule for the DeepWeedsX dataset.
+    It downloads the dataset, splits it into train, validation and test sets and
+    returns the corresponding PyTorch DataLoaders.
     """
 
     def __init__(
@@ -31,8 +32,9 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         **kwargs,
     ):
         super().__init__()
+        # Saves all arguments passed to the constructor as hyperparameters (self.hparams)
         self.save_hyperparameters()
-        pl.seed_everything(seed=self.hparams["seed"])
+        # Define the pre-processing steps for the images
         self.pre_processing = transforms.Compose(
             [
                 transforms.Resize(self.hparams.img_size),
@@ -40,11 +42,11 @@ class DeepWeedsDataModule(pl.LightningDataModule):
             ]
         )
 
-        self.hparams.balanced = bool(self.hparams.balanced)
-
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
+        # To allow the use of multiple workers for data loading, we need to use a temporary directory.
+        # Especially when using multiple GPUs, the data loading can become a bottleneck.
         self.temp_dir = tempfile.TemporaryDirectory()
 
     def prepare_data(self):
@@ -213,6 +215,7 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         Args:
             stage: either ``'fit'``, ``'validate'``, ``'test'``, or ``'predict'``
         """
+        # Delete the temporary directory
         self.temp_dir.cleanup()
         return super().teardown(stage)
 
@@ -221,7 +224,9 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         tarball: Path = DEEP_WOODS_DEFAULT_TARBALL_PATH,
         dest: Path = DEEP_WOODS_DEFAULT_DIR,
     ) -> None:
-        """TODO
+        """Unpacks the tarball containing the DeepWeeds.
+
+        Code from the project template.
 
         Args:
             tarball (Path, optional): _description_. Defaults to DEEP_WOODS_DEFAULT_TARBALL_PATH.
@@ -242,7 +247,9 @@ class DeepWeedsDataModule(pl.LightningDataModule):
     def _download_deepweeds(
         self, url: str = DEEP_WOODS_LINK, dest: Path = DEEP_WOODS_DEFAULT_TARBALL_PATH
     ) -> Path:
-        """TODO
+        """Downloads the DeepWeeds dataset.
+
+        Code from the project template.
 
         Args:
             url (str, optional): _description_. Defaults to DEEP_WOODS_LINK.
@@ -270,6 +277,8 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         balanced: bool = False,
     ) -> Tuple[ImageFolder, ImageFolder]:
         """Load the DeepWeeds dataset.
+
+        Code from the project template
 
         :param balanced:
             Whether to load the balanced dataset or not.
