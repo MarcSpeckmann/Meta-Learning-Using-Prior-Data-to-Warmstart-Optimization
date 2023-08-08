@@ -1,6 +1,15 @@
+from pathlib import Path
 from typing import Dict, List, Optional
 
-from ConfigSpace import ConfigurationSpace
+from ConfigSpace import (
+    Categorical,
+    Configuration,
+    ConfigurationSpace,
+    Constant,
+    Float,
+    InCondition,
+    Integer,
+)
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
 
@@ -235,3 +244,79 @@ class WarmstartSearcher(Searcher):
                 avoid breaking the optimization process.
         """
         pass
+
+
+if __name__ == "__main__":
+    SEED = 42
+    OPTIMIZATION_METRIC = "val_accuracy_mean"  # Metric to optimize for.
+    OPTIMIZATION_MODE = "max"  # Mode to optimize for.
+    HERE = Path(__file__).parent.absolute()
+    METADATA_FILE = (
+        HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
+    )  # Path to the metadata file for warmstarting.
+
+    config_space = ConfigurationSpace(
+        space={
+            "n_conv_layers": Integer("n_conv_layers", (1, 3), default=3),
+            "use_BN": Categorical("use_BN", [True, False], default=True),
+            "global_avg_pooling": Categorical(
+                "global_avg_pooling", [True, False], default=True
+            ),
+            "n_channels_conv_0": Integer(
+                "n_channels_conv_0", (32, 512), default=512, log=True
+            ),
+            "n_channels_conv_1": Integer(
+                "n_channels_conv_1", (16, 512), default=512, log=True
+            ),
+            "n_channels_conv_2": Integer(
+                "n_channels_conv_2", (16, 512), default=512, log=True
+            ),
+            "n_fc_layers": Integer("n_fc_layers", (1, 3), default=3),
+            "n_channels_fc_0": Integer(
+                "n_channels_fc_0", (32, 512), default=512, log=True
+            ),
+            "n_channels_fc_1": Integer(
+                "n_channels_fc_1", (16, 512), default=512, log=True
+            ),
+            "n_channels_fc_2": Integer(
+                "n_channels_fc_2", (16, 512), default=512, log=True
+            ),
+            "batch_size": Integer("batch_size", (1, 1000), default=200, log=True),
+            "learning_rate_init": Float(
+                "learning_rate_init",
+                (1e-5, 1.0),
+                default=1e-3,
+                log=True,
+            ),
+            "kernel_size": Constant("kernel_size", 3),
+            "dropout_rate": Constant("dropout_rate", 0.2),
+        },
+        seed=SEED,
+    )
+
+    # Add multiple conditions on hyperparameters at once:
+    config_space.add_conditions(
+        [
+            InCondition(
+                config_space["n_channels_conv_2"], config_space["n_conv_layers"], [3]
+            ),
+            InCondition(
+                config_space["n_channels_conv_1"], config_space["n_conv_layers"], [2, 3]
+            ),
+            InCondition(
+                config_space["n_channels_fc_2"], config_space["n_fc_layers"], [3]
+            ),
+            InCondition(
+                config_space["n_channels_fc_1"], config_space["n_fc_layers"], [2, 3]
+            ),
+        ]
+    )
+
+    searcher = WarmstartSearcher(
+        config_space=config_space,
+        metric=OPTIMIZATION_METRIC,
+        mode=OPTIMIZATION_MODE,
+        metadata_path=METADATA_FILE,
+    )
+
+    print(searcher.suggest(1))
