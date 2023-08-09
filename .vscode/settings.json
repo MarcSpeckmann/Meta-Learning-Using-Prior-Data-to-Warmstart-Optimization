@@ -1,8 +1,13 @@
 {
     "editor.formatOnSave": true,
-    "python.formatting.provider": "black",
-    "python.linting.lintOnSave": true,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
     "editor.codeActionsOnSave": {
         "source.organizeImports": true
-    }
+    },
+    "pylint.args": [
+        "--generate-members=torch.*",
+        "--disable=C0114",
+    ],
 }

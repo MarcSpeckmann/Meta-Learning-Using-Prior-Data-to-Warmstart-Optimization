@@ -5,6 +5,8 @@ deepweedsx
 dwx_data/t*
 *.tar.gz
 *.idea
+ray_tune
+lightning_logs
 
 # Outputs
 results/
