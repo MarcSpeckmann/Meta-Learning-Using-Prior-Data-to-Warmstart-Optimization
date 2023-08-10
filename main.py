@@ -89,6 +89,9 @@ def objective(config: Configuration) -> None:
         max_epochs=MAX_EPOCHS,
         callbacks=callbacks,
         deterministic=True,
+        enable_progress_bar=False,
+        enable_model_summary=False,
+        num_sanity_val_steps=0,
     )
 
     # Starting the training of the model.
@@ -170,9 +173,13 @@ def main() -> None:
             metric=OPTIMIZATION_METRIC,
             mode=OPTIMIZATION_MODE,
             metadata_path=METADATA_FILE,
+            seed=SEED,
+            max_concurrent=MAX_CONCURRENT_TRIALS,
         ),
         scheduler=ASHAScheduler(
-            time_attr="training_iteration", max_t=2 * MAX_EPOCHS
+            time_attr="training_iteration",
+            max_t=2 * MAX_EPOCHS,
+            grace_period=2,
         ),  # Its two times the max_epochs because ray tune counts the validation step as well
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
@@ -248,7 +255,7 @@ def main() -> None:
         )
 
         # Testing the best model using the trainer
-        t_trainer = pl.Trainer(logger=False)
+        t_trainer = pl.Trainer(logger=False, num_nodes=1, devices=1)
         t_trainer.test(model=t_model, datamodule=d_model)
 
 
@@ -291,6 +298,7 @@ if __name__ == "__main__":
 
     # Setting the seed for reproducibility of ray tune
     pl.seed_everything(seed=SEED, workers=True)
+    torch.set_float32_matmul_precision("high")
 
     # TODO: implement cross validation (How should we use successive halving, when using cv)
     main()
