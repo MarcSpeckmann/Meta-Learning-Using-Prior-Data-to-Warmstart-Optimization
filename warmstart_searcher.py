@@ -30,10 +30,12 @@ class WarmstartSearcher(Searcher):
         config_space: ConfigurationSpace,
         metric: str,
         mode: str,
+        seed: int,
         max_concurrent: int = 0,
     ) -> None:
         super().__init__(metric=metric, mode=mode)
         self.search_space = config_space
+        self.seed = seed
         self.warmstart_configs = []
         self.configurations = {}
         self.results = {}
