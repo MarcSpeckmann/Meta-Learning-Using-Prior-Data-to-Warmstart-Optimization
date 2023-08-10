@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from bayes_opt import BayesianOptimization, UtilityFunction
 from ConfigSpace import (
     Categorical,
     Configuration,
@@ -12,6 +13,7 @@ from ConfigSpace import (
 )
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
+from scipy.optimize import NonlinearConstraint
 
 from warmstart_config import config_from_metadata
 
@@ -48,6 +50,36 @@ class WarmstartSearcher(Searcher):
         )
 
         # TODO: use the warmstart_configs and warmstart_results to shrink/extend provided search space
+        # TODO: auto generate bounds
+        bounds = {
+            "batch_size": (1, 1000),
+            "global_avg_pooling": (0, 1),
+            "learning_rate_init": (1e-5, 1.0),
+            "n_channels_conv_0": (32, 512),
+            "n_channels_fc_0": (32, 512),
+            "n_conv_layers": (1, 3),
+            "n_fc_layers": (1, 3),
+            "use_BN": (0, 1),
+            "n_channels_conv_1": (16, 512),
+            "n_channels_conv_2": (16, 512),
+            "n_channels_fc_1": (16, 512),
+            "n_channels_fc_2": (16, 512),
+        }
+
+        self.optimizer = BayesianOptimization(f=None, pbounds=bounds, random_state=seed)
+        self.utility = UtilityFunction(kind="ei")
+
+        for config, metric in zip(self.warmstart_configs, self.warmstart_results):
+            param = {}
+            for key in bounds.keys():
+                if key in config.keys():
+                    param[key] = config[key]
+                else:
+                    param[key] = 0
+            self.optimizer.register(
+                params=param,
+                target=metric,
+            )
 
     def suggest(self, trial_id: str) -> Optional[Dict]:
         """Queries the algorithm to retrieve the next set of parameters.
@@ -92,10 +124,37 @@ class WarmstartSearcher(Searcher):
         # TODO: Implement a custom sampling method
         # Important: Pay attention to seeding, when using randomness
         # Otherwise, reproducibility is not guaranteed
-        configuration = self.search_space.sample_configuration()
+        # configuration_dict = self.search_space.sample_configuration()
+        configuration_dict = self.optimizer.suggest(self.utility)
+        self.configurations[trial_id] = configuration_dict.copy()
+
+        for key, value in configuration_dict.items():
+            if key in ["learning_rate_init"]:
+                configuration_dict[key] = value
+            elif key in ["use_BN", "global_avg_pooling"]:
+                configuration_dict[key] = bool(round(value))
+            else:
+                configuration_dict[key] = round(value)
+
+        configuration_dict["dropout_rate"] = 0.2
+        configuration_dict["kernel_size"] = 3
+
+        if configuration_dict["n_conv_layers"] == 1:
+            del configuration_dict["n_channels_conv_2"]
+            del configuration_dict["n_channels_conv_1"]
+        elif configuration_dict["n_conv_layers"] == 2:
+            del configuration_dict["n_channels_conv_2"]
+
+        if configuration_dict["n_fc_layers"] == 2:
+            del configuration_dict["n_channels_fc_2"]
+        elif configuration_dict["n_fc_layers"] == 1:
+            del configuration_dict["n_channels_fc_2"]
+            del configuration_dict["n_channels_fc_1"]
+
+        configuration = Configuration(self.search_space, configuration_dict)
 
         # Append the sampled configuration to the list of configurations.
-        self.configurations[trial_id] = configuration
+        # self.configurations[trial_id] = configuration_dict
         self.running.add(trial_id)
 
         return configuration
@@ -121,6 +180,11 @@ class WarmstartSearcher(Searcher):
         """
         self.running.discard(trial_id)
         self.results[trial_id] = result
+
+        self.optimizer.register(
+            params=self.configurations[trial_id],
+            target=result[self.metric],
+        )
 
     def save(self, checkpoint_path: str) -> None:
         """Save state to path for this search algorithm.
@@ -319,6 +383,9 @@ if __name__ == "__main__":
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         metadata_path=METADATA_FILE,
+        seed=SEED,
     )
 
-    print(searcher.suggest(1))
+    for i in range(50):
+        print(searcher.suggest(i))
+        searcher.on_trial_complete(i, {OPTIMIZATION_METRIC: i / 10})

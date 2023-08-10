@@ -2,3 +2,4 @@ pytorch_lightning
 ray[tune]
 ConfigSpace
 torchvision
+bayesian-optimization
