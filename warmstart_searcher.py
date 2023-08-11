@@ -13,8 +13,8 @@ from ConfigSpace import (
 )
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
-from scipy.optimize import NonlinearConstraint
 
+from random_forest_surrogate_regressor import RandomForestSurrogateRegressor
 from warmstart_config import config_from_metadata
 
 
@@ -67,6 +67,7 @@ class WarmstartSearcher(Searcher):
         }
 
         self.optimizer = BayesianOptimization(f=None, pbounds=bounds, random_state=seed)
+        self.optimizer._gp = RandomForestSurrogateRegressor(random_state=seed)
         self.utility = UtilityFunction(kind="ei")
 
         for config, metric in zip(self.warmstart_configs, self.warmstart_results):
