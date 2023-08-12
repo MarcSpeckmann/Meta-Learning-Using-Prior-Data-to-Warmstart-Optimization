@@ -4,12 +4,15 @@ from typing import Dict, List, Optional
 from bayes_opt import BayesianOptimization, UtilityFunction
 from ConfigSpace import (
     Categorical,
+    CategoricalHyperparameter,
     Configuration,
     ConfigurationSpace,
     Constant,
     Float,
     InCondition,
     Integer,
+    UniformFloatHyperparameter,
+    UniformIntegerHyperparameter,
 )
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
@@ -50,26 +53,31 @@ class WarmstartSearcher(Searcher):
         )
 
         # TODO: use the warmstart_configs and warmstart_results to shrink/extend provided search space
-        # TODO: auto generate bounds
-        bounds = {
-            "batch_size": (1, 1000),
-            "global_avg_pooling": (0, 1),
-            "learning_rate_init": (1e-5, 1.0),
-            "n_channels_conv_0": (32, 512),
-            "n_channels_fc_0": (32, 512),
-            "n_conv_layers": (1, 3),
-            "n_fc_layers": (1, 3),
-            "use_BN": (0, 1),
-            "n_channels_conv_1": (16, 512),
-            "n_channels_conv_2": (16, 512),
-            "n_channels_fc_1": (16, 512),
-            "n_channels_fc_2": (16, 512),
-        }
 
+        # Generating bounds of hyperparameter for the bayesion optimizer
+        bounds = {}
+        for hp in self.search_space.get_hyperparameters():
+            if isinstance(hp, Constant):
+                continue
+            elif isinstance(hp, CategoricalHyperparameter):
+                if hp.num_choices > 2:
+                    raise ValueError(
+                        "CategoricalHyperparameter with more than 2 categories are not supported"
+                    )
+                bounds[hp.name] = (0, hp.num_choices - 1)
+            elif isinstance(hp, UniformIntegerHyperparameter) or isinstance(
+                hp, UniformFloatHyperparameter
+            ):
+                bounds[hp.name] = (hp.lower, hp.upper)
+            else:
+                raise ValueError("Unsupported hyperparameter type")
+
+        # Creating the bayesian optimizer with RandonForestRegressor as surrogate model.
         self.optimizer = BayesianOptimization(f=None, pbounds=bounds, random_state=seed)
         self.optimizer._gp = RandomForestSurrogateRegressor(random_state=seed)
         self.utility = UtilityFunction(kind="ei")
 
+        # Pretrain the bayesian optimizer with the warmstart configs
         for config, metric in zip(self.warmstart_configs, self.warmstart_results):
             param = {}
             for key in bounds.keys():
@@ -121,41 +129,49 @@ class WarmstartSearcher(Searcher):
         if len(self.running) >= max_concurrent:
             return None
 
-        # Sample a configuration from the search space
-        # TODO: Implement a custom sampling method
-        # Important: Pay attention to seeding, when using randomness
-        # Otherwise, reproducibility is not guaranteed
-        # configuration_dict = self.search_space.sample_configuration()
+        # Sample a configuration from bayesian optimizer
         configuration_dict = self.optimizer.suggest(self.utility)
+        # Append the sampled configuration to the list of configurations.
         self.configurations[trial_id] = configuration_dict.copy()
 
-        for key, value in configuration_dict.items():
-            if key in ["learning_rate_init"]:
-                configuration_dict[key] = value
-            elif key in ["use_BN", "global_avg_pooling"]:
-                configuration_dict[key] = bool(round(value))
+        # Converting the floats returned from the bayesion optimizer
+        # back to the original hyperparameter typ
+        for hp in self.search_space.get_hyperparameters():
+            if hp.name in configuration_dict.keys():
+                if isinstance(hp, CategoricalHyperparameter):
+                    if hp.num_choices > 2:
+                        raise ValueError(
+                            "CategoricalHyperparameter with more than 2 categories are not supported"
+                        )
+                    configuration_dict[hp.name] = bool(
+                        round(configuration_dict[hp.name])
+                    )
+                elif isinstance(hp, UniformIntegerHyperparameter):
+                    configuration_dict[hp.name] = round(configuration_dict[hp.name])
+                elif isinstance(hp, UniformFloatHyperparameter):
+                    configuration_dict[hp.name] = configuration_dict[hp.name]
+                else:
+                    raise ValueError("Unsupported hyperparameter type")
+            elif isinstance(hp, Constant):
+                configuration_dict[hp.name] = hp.value
             else:
-                configuration_dict[key] = round(value)
+                raise ValueError("Unsupported hyperparameter type")
 
-        configuration_dict["dropout_rate"] = 0.2
-        configuration_dict["kernel_size"] = 3
-
-        if configuration_dict["n_conv_layers"] == 1:
-            del configuration_dict["n_channels_conv_2"]
-            del configuration_dict["n_channels_conv_1"]
-        elif configuration_dict["n_conv_layers"] == 2:
-            del configuration_dict["n_channels_conv_2"]
-
-        if configuration_dict["n_fc_layers"] == 2:
-            del configuration_dict["n_channels_fc_2"]
-        elif configuration_dict["n_fc_layers"] == 1:
-            del configuration_dict["n_channels_fc_2"]
-            del configuration_dict["n_channels_fc_1"]
+        # Ensure that all hp conditions are met.
+        for condition in self.search_space.get_conditions():
+            if isinstance(condition, InCondition):
+                if not any(
+                    [
+                        value == configuration_dict[condition.parent.name]
+                        for value in condition.values
+                    ]
+                ):
+                    del configuration_dict[condition.child.name]
+            else:
+                raise ValueError("Unsupported condition type")
 
         configuration = Configuration(self.search_space, configuration_dict)
 
-        # Append the sampled configuration to the list of configurations.
-        # self.configurations[trial_id] = configuration_dict
         self.running.add(trial_id)
 
         return configuration
