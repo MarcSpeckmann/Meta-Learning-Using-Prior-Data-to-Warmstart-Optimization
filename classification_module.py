@@ -285,8 +285,8 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         Returns:
             int: _description_
         """
-        channels, w, h = shape
-        var = Variable(torch.rand(1, channels, w, h))
+        channels, width, height = shape
+        var = Variable(torch.rand(1, channels, width, height))
 
         seq = torch.nn.Sequential()
         for layer in layers:

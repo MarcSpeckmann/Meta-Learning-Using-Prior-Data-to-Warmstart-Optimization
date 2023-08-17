@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Any, Dict
 
 import pytorch_lightning as pl
 import torch
@@ -99,6 +98,7 @@ def objective(config: Configuration) -> None:
 
 
 def main() -> None:
+    """Main method of project"""
     # Defining the search space
     # This serves only as an example of how you can manually define a Configuration Space
     # To illustrate different parameter types;

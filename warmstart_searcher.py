@@ -56,7 +56,7 @@ class WarmstartSearcher(Searcher):
 
         # Generating bounds of hyperparameter for the bayesion optimizer
         bounds = {}
-        for hp in self.search_space.get_hyperparameters():
+        for hp in self.search_space.values():
             if isinstance(hp, Constant):
                 continue
             elif isinstance(hp, CategoricalHyperparameter):
@@ -80,7 +80,7 @@ class WarmstartSearcher(Searcher):
         # Pretrain the bayesian optimizer with the warmstart configs
         for config, metric in zip(self.warmstart_configs, self.warmstart_results):
             param = {}
-            for key in bounds.keys():
+            for key in bounds:
                 if key in config.keys():
                     param[key] = config[key]
                 else:
@@ -136,7 +136,7 @@ class WarmstartSearcher(Searcher):
 
         # Converting the floats returned from the bayesion optimizer
         # back to the original hyperparameter typ
-        for hp in self.search_space.get_hyperparameters():
+        for hp in self.search_space.values():
             if hp.name in configuration_dict.keys():
                 if isinstance(hp, CategoricalHyperparameter):
                     if hp.num_choices > 2:
@@ -161,10 +161,8 @@ class WarmstartSearcher(Searcher):
         for condition in self.search_space.get_conditions():
             if isinstance(condition, InCondition):
                 if not any(
-                    [
-                        value == configuration_dict[condition.parent.name]
-                        for value in condition.values
-                    ]
+                    value == configuration_dict[condition.parent.name]
+                    for value in condition.values
                 ):
                     del configuration_dict[condition.child.name]
             else:
@@ -326,7 +324,6 @@ class WarmstartSearcher(Searcher):
                 subclass implementation to preprocess the result to
                 avoid breaking the optimization process.
         """
-        pass
 
 
 if __name__ == "__main__":
@@ -338,7 +335,7 @@ if __name__ == "__main__":
         HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
     )  # Path to the metadata file for warmstarting.
 
-    config_space = ConfigurationSpace(
+    cs = ConfigurationSpace(
         space={
             "n_conv_layers": Integer("n_conv_layers", (1, 3), default=3),
             "use_BN": Categorical("use_BN", [True, False], default=True),
@@ -378,25 +375,17 @@ if __name__ == "__main__":
     )
 
     # Add multiple conditions on hyperparameters at once:
-    config_space.add_conditions(
+    cs.add_conditions(
         [
-            InCondition(
-                config_space["n_channels_conv_2"], config_space["n_conv_layers"], [3]
-            ),
-            InCondition(
-                config_space["n_channels_conv_1"], config_space["n_conv_layers"], [2, 3]
-            ),
-            InCondition(
-                config_space["n_channels_fc_2"], config_space["n_fc_layers"], [3]
-            ),
-            InCondition(
-                config_space["n_channels_fc_1"], config_space["n_fc_layers"], [2, 3]
-            ),
+            InCondition(cs["n_channels_conv_2"], cs["n_conv_layers"], [3]),
+            InCondition(cs["n_channels_conv_1"], cs["n_conv_layers"], [2, 3]),
+            InCondition(cs["n_channels_fc_2"], cs["n_fc_layers"], [3]),
+            InCondition(cs["n_channels_fc_1"], cs["n_fc_layers"], [2, 3]),
         ]
     )
 
     searcher = WarmstartSearcher(
-        config_space=config_space,
+        config_space=cs,
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         metadata_path=METADATA_FILE,

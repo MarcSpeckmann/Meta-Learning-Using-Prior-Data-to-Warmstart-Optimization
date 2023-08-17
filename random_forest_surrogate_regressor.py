@@ -4,6 +4,12 @@ from sklearn.ensemble import RandomForestRegressor
 
 
 class RandomForestSurrogateRegressor(RandomForestRegressor):
+    """
+    This class is a wrapper for the sklearn RandomForestRegressor class.
+    It adds the functionality to return the uncertainty of the predictions.
+    It is used as a surrogate model for the Bayesian optimization.
+    """
+
     def __init__(
         self,
         n_estimators=100,
@@ -46,12 +52,28 @@ class RandomForestSurrogateRegressor(RandomForestRegressor):
         )
 
     def predict(self, X, return_std=False) -> ndarray:
+        """Predict class or regression value for X.
+
+        Args:
+            X (_type_):  The input samples.
+            return_std (bool, optional): Allows to return the variance of the diffrent trees. Defaults to False.
+
+        Returns:
+            ndarray: The predicted classes, or the predict values.
+        """
         if return_std:
             return super().predict(X), self.get_uncertainty(X)
-        else:
-            return super().predict(X)
+        return super().predict(X)
 
     def get_uncertainty(self, X) -> ndarray:
+        """_summary_
+
+        Args:
+            X (_type_): The input samples.
+
+        Returns:
+            ndarray: The variance of the predictions of the diffrent trees.
+        """
         ensemble_predictions = np.array(
             [submodel.predict(X) for submodel in self.estimators_]
         )
