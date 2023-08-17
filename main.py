@@ -185,6 +185,7 @@ def main() -> None:
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
         time_budget_s=WALLTIME_LIMIT,
+        reuse_actors=False,
     )
 
     # Defining the run configuration. The checkpoint_config is used to save the best models.
