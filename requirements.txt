@@ -3,3 +3,5 @@ ray[tune]
 ConfigSpace
 torchvision
 bayesian-optimization
+pytest
+scikit-learn
