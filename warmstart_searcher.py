@@ -51,6 +51,10 @@ class WarmstartSearcher(Searcher):
         self.warmstart_configs, self.warmstart_results = config_from_metadata(
             metadata_path, config_space
         )
+        if not metadata_path:
+            raise RuntimeError("No warmstart configurations found")
+        if not self.search_space:
+            raise RuntimeError("No search space defined")
 
         # TODO: use the warmstart_configs and warmstart_results to shrink/extend provided search space
 
@@ -78,7 +82,7 @@ class WarmstartSearcher(Searcher):
         self.utility = UtilityFunction(kind="ei")
 
         # Pretrain the bayesian optimizer with the warmstart configs
-        for config, metric in zip(self.warmstart_configs, self.warmstart_results):
+        for config, result in zip(self.warmstart_configs, self.warmstart_results):
             param = {}
             for key in bounds:
                 if key in config.keys():
@@ -87,7 +91,7 @@ class WarmstartSearcher(Searcher):
                     param[key] = 0
             self.optimizer.register(
                 params=param,
-                target=metric,
+                target=result,
             )
 
     def suggest(self, trial_id: str) -> Optional[Dict]:
