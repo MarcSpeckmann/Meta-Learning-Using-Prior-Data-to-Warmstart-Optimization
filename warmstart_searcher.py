@@ -1,18 +1,23 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from bayes_opt import BayesianOptimization, UtilityFunction
 from ConfigSpace import (
     Categorical,
+    CategoricalHyperparameter,
     Configuration,
     ConfigurationSpace,
     Constant,
     Float,
     InCondition,
     Integer,
+    UniformFloatHyperparameter,
+    UniformIntegerHyperparameter,
 )
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
 
+from random_forest_surrogate_regressor import RandomForestSurrogateRegressor
 from warmstart_config import config_from_metadata
 
 
@@ -46,8 +51,48 @@ class WarmstartSearcher(Searcher):
         self.warmstart_configs, self.warmstart_results = config_from_metadata(
             metadata_path, config_space
         )
+        if not metadata_path:
+            raise RuntimeError("No warmstart configurations found")
+        if not self.search_space:
+            raise RuntimeError("No search space defined")
 
         # TODO: use the warmstart_configs and warmstart_results to shrink/extend provided search space
+
+        # Generating bounds of hyperparameter for the bayesion optimizer
+        bounds = {}
+        for hp in self.search_space.values():
+            if isinstance(hp, Constant):
+                continue
+            elif isinstance(hp, CategoricalHyperparameter):
+                if hp.num_choices > 2:
+                    raise ValueError(
+                        "CategoricalHyperparameter with more than 2 categories are not supported"
+                    )
+                bounds[hp.name] = (0, hp.num_choices - 1)
+            elif isinstance(hp, UniformIntegerHyperparameter) or isinstance(
+                hp, UniformFloatHyperparameter
+            ):
+                bounds[hp.name] = (hp.lower, hp.upper)
+            else:
+                raise ValueError("Unsupported hyperparameter type")
+
+        # Creating the bayesian optimizer with RandonForestRegressor as surrogate model.
+        self.optimizer = BayesianOptimization(f=None, pbounds=bounds, random_state=seed)
+        self.optimizer._gp = RandomForestSurrogateRegressor(random_state=seed)
+        self.utility = UtilityFunction(kind="ei")
+
+        # Pretrain the bayesian optimizer with the warmstart configs
+        for config, result in zip(self.warmstart_configs, self.warmstart_results):
+            param = {}
+            for key in bounds:
+                if key in config.keys():
+                    param[key] = config[key]
+                else:
+                    param[key] = 0
+            self.optimizer.register(
+                params=param,
+                target=result,
+            )
 
     def suggest(self, trial_id: str) -> Optional[Dict]:
         """Queries the algorithm to retrieve the next set of parameters.
@@ -88,14 +133,47 @@ class WarmstartSearcher(Searcher):
         if len(self.running) >= max_concurrent:
             return None
 
-        # Sample a configuration from the search space
-        # TODO: Implement a custom sampling method
-        # Important: Pay attention to seeding, when using randomness
-        # Otherwise, reproducibility is not guaranteed
-        configuration = self.search_space.sample_configuration()
-
+        # Sample a configuration from bayesian optimizer
+        configuration_dict = self.optimizer.suggest(self.utility)
         # Append the sampled configuration to the list of configurations.
-        self.configurations[trial_id] = configuration
+        self.configurations[trial_id] = configuration_dict.copy()
+
+        # Converting the floats returned from the bayesion optimizer
+        # back to the original hyperparameter typ
+        for hp in self.search_space.values():
+            if hp.name in configuration_dict.keys():
+                if isinstance(hp, CategoricalHyperparameter):
+                    if hp.num_choices > 2:
+                        raise ValueError(
+                            "CategoricalHyperparameter with more than 2 categories are not supported"
+                        )
+                    configuration_dict[hp.name] = bool(
+                        round(configuration_dict[hp.name])
+                    )
+                elif isinstance(hp, UniformIntegerHyperparameter):
+                    configuration_dict[hp.name] = round(configuration_dict[hp.name])
+                elif isinstance(hp, UniformFloatHyperparameter):
+                    configuration_dict[hp.name] = configuration_dict[hp.name]
+                else:
+                    raise ValueError("Unsupported hyperparameter type")
+            elif isinstance(hp, Constant):
+                configuration_dict[hp.name] = hp.value
+            else:
+                raise ValueError("Unsupported hyperparameter type")
+
+        # Ensure that all hp conditions are met.
+        for condition in self.search_space.get_conditions():
+            if isinstance(condition, InCondition):
+                if not any(
+                    value == configuration_dict[condition.parent.name]
+                    for value in condition.values
+                ):
+                    del configuration_dict[condition.child.name]
+            else:
+                raise ValueError("Unsupported condition type")
+
+        configuration = Configuration(self.search_space, configuration_dict)
+
         self.running.add(trial_id)
 
         return configuration
@@ -121,6 +199,11 @@ class WarmstartSearcher(Searcher):
         """
         self.running.discard(trial_id)
         self.results[trial_id] = result
+
+        self.optimizer.register(
+            params=self.configurations[trial_id],
+            target=result[self.metric],
+        )
 
     def save(self, checkpoint_path: str) -> None:
         """Save state to path for this search algorithm.
@@ -245,7 +328,6 @@ class WarmstartSearcher(Searcher):
                 subclass implementation to preprocess the result to
                 avoid breaking the optimization process.
         """
-        pass
 
 
 if __name__ == "__main__":
@@ -257,7 +339,7 @@ if __name__ == "__main__":
         HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
     )  # Path to the metadata file for warmstarting.
 
-    config_space = ConfigurationSpace(
+    cs = ConfigurationSpace(
         space={
             "n_conv_layers": Integer("n_conv_layers", (1, 3), default=3),
             "use_BN": Categorical("use_BN", [True, False], default=True),
@@ -297,28 +379,23 @@ if __name__ == "__main__":
     )
 
     # Add multiple conditions on hyperparameters at once:
-    config_space.add_conditions(
+    cs.add_conditions(
         [
-            InCondition(
-                config_space["n_channels_conv_2"], config_space["n_conv_layers"], [3]
-            ),
-            InCondition(
-                config_space["n_channels_conv_1"], config_space["n_conv_layers"], [2, 3]
-            ),
-            InCondition(
-                config_space["n_channels_fc_2"], config_space["n_fc_layers"], [3]
-            ),
-            InCondition(
-                config_space["n_channels_fc_1"], config_space["n_fc_layers"], [2, 3]
-            ),
+            InCondition(cs["n_channels_conv_2"], cs["n_conv_layers"], [3]),
+            InCondition(cs["n_channels_conv_1"], cs["n_conv_layers"], [2, 3]),
+            InCondition(cs["n_channels_fc_2"], cs["n_fc_layers"], [3]),
+            InCondition(cs["n_channels_fc_1"], cs["n_fc_layers"], [2, 3]),
         ]
     )
 
     searcher = WarmstartSearcher(
-        config_space=config_space,
+        config_space=cs,
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         metadata_path=METADATA_FILE,
+        seed=SEED,
     )
 
-    print(searcher.suggest(1))
+    for i in range(50):
+        print(searcher.suggest(i))
+        searcher.on_trial_complete(i, {OPTIMIZATION_METRIC: i / 10})

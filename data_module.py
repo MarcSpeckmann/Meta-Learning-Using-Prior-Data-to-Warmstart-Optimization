@@ -9,6 +9,7 @@ from typing import Tuple
 
 import pytorch_lightning as pl
 import torch
+from filelock import FileLock
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -64,12 +65,13 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         datadir = Path(os.path.join(self.data_path, DEEP_WOODS_DEFAULT_DIR))
         tar_path = Path(os.path.join(datadir, DEEP_WOODS_DEFAULT_TARBALL_PATH))
 
-        if not datadir.exists():
-            datadir.mkdir(parents=True)
+        with FileLock(datadir / ".data.lock"):
+            if not datadir.exists():
+                datadir.mkdir(parents=True)
 
-        self._download_deepweeds(url=DEEP_WOODS_LINK, dest=tar_path)
+            self._download_deepweeds(url=DEEP_WOODS_LINK, dest=tar_path)
 
-        self._unpack_tarball(tarball=tar_path, dest=datadir)
+            self._unpack_tarball(tarball=tar_path, dest=datadir)
 
     def setup(self, stage: str) -> None:
         """
@@ -211,7 +213,6 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         Return:
             A :class:`torch.utils.data.DataLoader` or a sequence of them specifying prediction samples.
         """
-        pass
 
     def teardown(self, stage: str) -> None:
         """Called at the end of fit (train + validate), validate, test, or predict.
@@ -269,8 +270,8 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         logging.debug("Downloading from %s to %s", url, dest)
         dest.parent.mkdir(exist_ok=True, parents=True)
 
-        with urllib.request.urlopen(url) as response, open(dest, "wb") as f:
-            shutil.copyfileobj(response, f)
+        with urllib.request.urlopen(url) as response, open(dest, "wb") as file:
+            shutil.copyfileobj(response, file)
 
         logging.debug("Download finished at %s", dest)
         return dest
@@ -302,3 +303,16 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         test_dataset = ImageFolder(root=str(test_path), transform=self.pre_processing)
 
         return train_dataset, test_dataset
+
+
+if __name__ == "__main__":
+    data_model = DeepWeedsDataModule(
+        batch_size=32,
+        img_size=(32, 32),
+        balanced=True,
+        train_val_split=0.1,
+        num_workers=4,
+        data_path="./data",
+        load_data_on_every_trial=False,
+        seed=42,
+    )
