@@ -194,7 +194,6 @@ class ForestScheduler(TrialScheduler):
     @ray.remote
     def train_regressor(self, data: pd.DataFrame):
         print("Training regressor")
-        print(self._seed)
         regressor = RandomForestRegressor(random_state=self._seed)
         print(regressor.__dict__)
         return regressor.fit(
