@@ -38,7 +38,6 @@ class ForestScheduler(TrialScheduler):
             "n_conv_layers",
             "n_fc_layers",
             "use_BN",
-            "time_this_iter_s",
             "training_iteration",
             "time_total_s",
             "val_accuracy_mean",
@@ -115,32 +114,34 @@ class ForestScheduler(TrialScheduler):
                     print("Prediction equal to actual")
 
                 future_config_df = config_df.copy()
-                future_config_df.at[0, "training_iteration"] = (
-                    future_config_df.at[0, "training_iteration"] + 2
-                )
+                future_config_df.at[0, "time_total_s"] = (
+                    future_config_df.at[0, "time_total_s"]
+                    / future_config_df.at[0, "training_iteration"]
+                ) * 40
+                print("Future time: ", future_config_df.at[0, "time_total_s"])
+                future_config_df.at[0, "training_iteration"] = 40
                 future_prediction = None
                 with FileLock("regressor.lock"):
                     future_prediction = self._regressor.predict(
                         future_config_df.drop(["val_accuracy_mean"], axis=1)
                     )
                 assert future_prediction is not None
-                print("Future Prediction: ", prediction[0])
-                if not math.isclose(future_prediction[0], prediction[0], abs_tol=0.001):
-                    if future_prediction[0] >= config_df["val_accuracy_mean"][0]:
-                        print("Predicting config to improve or not worsen, continuing")
-                        if trial in self.grace_table:
-                            self.grace_table[trial] += 1
-                            print("Grace period extended")
+                print("Future Prediction: ", future_prediction[0])
+                if future_prediction[0] >= config_df["val_accuracy_mean"][0]:
+                    print("Predicting config to improve or not worsen, continuing")
+                    if trial in self.grace_table:
+                        self.grace_table[trial] += 1
+                        print("Grace period extended")
+                else:
+                    print("Predicting config to worsen, reducing grace period")
+                    if trial in self.grace_table:
+                        self.grace_table[trial] -= 1
+                        if self.grace_table[trial] == 0:
+                            print("Grace period over, stopping trial")
+                            action = TrialScheduler.STOP
                     else:
-                        print("Predicting config to worsen, reducing grace period")
-                        if trial in self.grace_table:
-                            self.grace_table[trial] -= 1
-                            if self.grace_table[trial] == 0:
-                                print("Grace period over, stopping trial")
-                                action = TrialScheduler.STOP
-                        else:
-                            self.grace_table[trial] = 2
-                            print("Grace period started")
+                        self.grace_table[trial] = 2
+                        print("Grace period started")
 
         # update performance metrics and update regressor
         with FileLock("trial_improvements.lock"):
@@ -195,7 +196,6 @@ class ForestScheduler(TrialScheduler):
     def train_regressor(self, data: pd.DataFrame):
         print("Training regressor")
         regressor = RandomForestRegressor(random_state=self._seed)
-        print(regressor.__dict__)
         return regressor.fit(
             data.drop(columns=["val_accuracy_mean"]),
             data["val_accuracy_mean"],
@@ -203,7 +203,6 @@ class ForestScheduler(TrialScheduler):
 
     def prepare_data(self, config: dict, result: dict):
         config_copy = config.copy()
-        config_copy["time_this_iter_s"] = result["time_this_iter_s"]
         config_copy["training_iteration"] = result["training_iteration"]
         config_copy["time_total_s"] = result["time_total_s"]
         config_copy["val_accuracy_mean"] = result["val_accuracy_mean"]
