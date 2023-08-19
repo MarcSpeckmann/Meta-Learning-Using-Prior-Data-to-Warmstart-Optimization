@@ -46,6 +46,7 @@ class ForestScheduler(TrialScheduler):
         self._trial_improvements = pd.DataFrame(columns=self._hp_names)
         self._fitting_task = None
         self._seed = seed
+        self._highest_accuracy = 0
 
     def on_trial_add(self, trial_runner: "trial_runner.TrialRunner", trial: Trial):
         pass
@@ -85,34 +86,16 @@ class ForestScheduler(TrialScheduler):
             print("Actual: ", config_df["val_accuracy_mean"][0])
 
             if not math.isclose(
-                prediction[0], config_df["val_accuracy_mean"][0], abs_tol=0.01
+                prediction[0], config_df["val_accuracy_mean"][0], abs_tol=0.005
             ):
                 print(
                     "Prediction too far off, continuing trial to learn more about the space"
                 )
                 if trial in self.grace_table:
-                    self.grace_table[trial] += 1
-                    print("Grace period extended")
+                    self.grace_table[trial] = min(self.grace_table[trial] + 1, 2)
+                    print("Grace period extended to ", self.grace_table[trial])
             else:
-                if prediction[0] - config_df["val_accuracy_mean"][0] > 0:
-                    print("Prediction better than actual")
-                    if trial in self.grace_table:
-                        self.grace_table[trial] -= 1
-                        print("Grace period reduced to ", self.grace_table[trial])
-                        if self.grace_table[trial] == 0:
-                            print("Grace period over, stopping trial")
-                            action = TrialScheduler.STOP
-                    else:
-                        self.grace_table[trial] = 2
-                        print("Grace period started with a value of 2")
-                elif prediction[0] - config_df["val_accuracy_mean"][0] < 0:
-                    print("Prediction worse than actual")
-                    if trial in self.grace_table:
-                        self.grace_table[trial] += 1
-                        print("Grace period extended to ", self.grace_table[trial])
-                else:
-                    print("Prediction equal to actual")
-
+                print("Prediction close enough, checking future")
                 future_config_df = config_df.copy()
                 future_config_df.at[0, "time_total_s"] = (
                     future_config_df.at[0, "time_total_s"]
@@ -127,13 +110,17 @@ class ForestScheduler(TrialScheduler):
                     )
                 assert future_prediction is not None
                 print("Future Prediction: ", future_prediction[0])
-                if future_prediction[0] >= config_df["val_accuracy_mean"][0]:
-                    print("Predicting config to improve or not worsen, continuing")
+                if future_prediction[0] > max(
+                    self._highest_accuracy, config_df["val_accuracy_mean"][0] + 0.01
+                ):
+                    print("Predicting config to improve, continuing")
                     if trial in self.grace_table:
-                        self.grace_table[trial] += 1
-                        print("Grace period extended")
+                        self.grace_table[trial] = min(self.grace_table[trial] + 1, 2)
+                        print("Grace period extended to ", self.grace_table[trial])
                 else:
-                    print("Predicting config to worsen, reducing grace period")
+                    print(
+                        "Predicting config to worsen or not improve, reducing grace period"
+                    )
                     if trial in self.grace_table:
                         self.grace_table[trial] -= 1
                         if self.grace_table[trial] == 0:
@@ -167,7 +154,11 @@ class ForestScheduler(TrialScheduler):
     def on_trial_complete(
         self, trial_runner: "trial_runner.TrialRunner", trial: Trial, result: Dict
     ):
-        pass
+        if result["training_iteration"] == 40:
+            if result["val_accuracy_mean"] > self._highest_accuracy:
+                self._highest_accuracy = result["val_accuracy_mean"]
+                print("Highest val_accuracy_mean updated to: ", self._highest_accuracy)
+        del self.grace_table[trial]
 
     def on_trial_remove(self, trial_runner: "trial_runner.TrialRunner", trial: Trial):
         pass
