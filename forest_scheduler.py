@@ -158,7 +158,8 @@ class ForestScheduler(TrialScheduler):
             if result["val_accuracy_mean"] > self._highest_accuracy:
                 self._highest_accuracy = result["val_accuracy_mean"]
                 print("Highest val_accuracy_mean updated to: ", self._highest_accuracy)
-        del self.grace_table[trial]
+        if trial in self.grace_table:
+            del self.grace_table[trial]
 
     def on_trial_remove(self, trial_runner: "trial_runner.TrialRunner", trial: Trial):
         pass
