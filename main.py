@@ -257,13 +257,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = "Baseline_FIFO_WARMSTARTSEARCH_2"  # Name of folder where the experiment is saved
+    EXPERIMENT_NAME = "Baseline_FIFO_WARMSTARTSEARCH_3"  # Name of folder where the experiment is saved
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
     TEST = True  # If True, the best model is tested.
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
-    SEED = 255462424 # Seed for reproducibility
+    SEED = 1143060359 # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
     WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.
