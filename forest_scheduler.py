@@ -62,6 +62,10 @@ class ForestScheduler(TrialScheduler):
         if result["training_iteration"] % 2 == 1:
             return TrialScheduler.CONTINUE
 
+        if result["val_accuracy_mean"] > self._highest_accuracy:
+            self._highest_accuracy = result["val_accuracy_mean"]
+            print("Highest val_accuracy_mean updated to: ", self._highest_accuracy)
+
         if self._fitting_task is not None:
             ready_tasks, _ = ray.wait([self._fitting_task], num_returns=1, timeout=0)
             if self._fitting_task in ready_tasks:
@@ -97,22 +101,29 @@ class ForestScheduler(TrialScheduler):
             else:
                 print("Prediction close enough, checking future")
                 future_config_df = config_df.copy()
-                future_config_df.at[0, "time_total_s"] = (
-                    future_config_df.at[0, "time_total_s"]
-                    / future_config_df.at[0, "training_iteration"]
-                ) * 40
-                print("Future time: ", future_config_df.at[0, "time_total_s"])
-                future_config_df.at[0, "training_iteration"] = 40
-                future_prediction = None
-                with FileLock("regressor.lock"):
-                    future_prediction = self._regressor.predict(
-                        future_config_df.drop(["val_accuracy_mean"], axis=1)
-                    )
-                assert future_prediction is not None
-                print("Future Prediction: ", future_prediction[0])
-                if future_prediction[0] > max(
-                    self._highest_accuracy, config_df["val_accuracy_mean"][0] + 0.01
+                time_per_iteration = (
+                    config_df.at[0, "time_total_s"]
+                    / config_df.at[0, "training_iteration"]
+                )
+                future_predictions = []
+                for future_iteration in range(
+                    config_df["training_iteration"][0] + 2, 41, 2
                 ):
+                    future_config_df.at[0, "time_total_s"] = (
+                        time_per_iteration * future_iteration
+                    )
+                    future_config_df.at[0, "training_iteration"] = future_iteration
+
+                    with FileLock("regressor.lock"):
+                        future_predictions.append(
+                            self._regressor.predict(
+                                future_config_df.drop(["val_accuracy_mean"], axis=1)
+                            )[0]
+                        )
+                assert len(future_predictions) > 0
+                print("Future Predictions: ", future_predictions)
+                print("Max Future Prediction: ", max(future_predictions))
+                if max(future_predictions) > self._highest_accuracy:
                     print("Predicting config to improve, continuing")
                     if trial in self.grace_table:
                         self.grace_table[trial] = min(self.grace_table[trial] + 1, 2)
@@ -154,10 +165,6 @@ class ForestScheduler(TrialScheduler):
     def on_trial_complete(
         self, trial_runner: "trial_runner.TrialRunner", trial: Trial, result: Dict
     ):
-        if result["training_iteration"] == 40:
-            if result["val_accuracy_mean"] > self._highest_accuracy:
-                self._highest_accuracy = result["val_accuracy_mean"]
-                print("Highest val_accuracy_mean updated to: ", self._highest_accuracy)
         if trial in self.grace_table:
             del self.grace_table[trial]
 
