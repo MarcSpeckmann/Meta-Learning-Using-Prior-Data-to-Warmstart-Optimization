@@ -15,10 +15,10 @@ from ConfigSpace import (
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+from ray.tune.schedulers import FIFOScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
-from dora import Dora
 from warmstart_searcher import WarmstartSearcher
 
 
@@ -169,11 +169,7 @@ def main() -> None:
             max_concurrent=MAX_CONCURRENT_TRIALS,
             add_config_threshold=MAX_EPOCHS,
         ),
-        scheduler=Dora(
-            time_attr="training_iteration",
-            max_t=MAX_EPOCHS,
-            seed=SEED,
-        ),
+        scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -264,15 +260,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = (
-        "Baseline_DORA_WARMSTARTSEARCH_3"  # Name of folder where the experiment is save
-    )
+    EXPERIMENT_NAME = "EXPERIMENT_FIFO_WARMSTARTSEARCH_2"  # Name of folder where the experiment is saved
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
     TEST = True  # If True, the best model is tested.
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
-    SEED = 1143060359  # Seed for reproducibility
+    SEED = 255462424  # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
     WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.
@@ -291,7 +285,7 @@ if __name__ == "__main__":
     KEEP_N_BEST_MODELS = 1  # Number of best models to keep.
     LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
 
-    HERE = Path(__file__).parent.absolute()  # Path to this file.
+    HERE = Path(__file__).parent.absolute() / ".."  # Path to this file.
     DATA_PATH = HERE / "data"  # Path to the data directory.
     RAY_TUNE_DIR = HERE / "ray_tune"  # Path to the ray tune directory.
     RAY_EXPERIMENT_DIR = (

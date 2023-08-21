@@ -15,11 +15,11 @@ from ConfigSpace import (
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
-from ray.tune.schedulers import FIFOScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
-from random_searcher import RandomSearcher
+from dora import Dora
+from warmstart_searcher import WarmstartSearcher
 
 
 def objective(config: Configuration) -> None:
@@ -160,14 +160,20 @@ def main() -> None:
     # The num_samples is the number of trials we want to run. The time_budget_s is the time limit for the experiment.
     # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.TuneConfig.html#ray-tune-tuneconfig
     tune_config = tune.TuneConfig(
-        search_alg=RandomSearcher(
+        search_alg=WarmstartSearcher(
             config_space=config_space,
             metric=OPTIMIZATION_METRIC,
             mode=OPTIMIZATION_MODE,
+            metadata_path=METADATA_FILE,
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
+            add_config_threshold=MAX_EPOCHS,
         ),
-        scheduler=FIFOScheduler(),
+        scheduler=Dora(
+            time_attr="training_iteration",
+            max_t=MAX_EPOCHS,
+            seed=SEED,
+        ),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -258,9 +264,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = (
-        "Baseline_FIFO_RANDDOMSEARCH_1"  # Name of folder where the experiment is save
-    )
+    EXPERIMENT_NAME = "EXPERIMENT_DORA_WARMSTARTSEARCH_1"  # Name of folder where the experiment is save
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
@@ -285,7 +289,7 @@ if __name__ == "__main__":
     KEEP_N_BEST_MODELS = 1  # Number of best models to keep.
     LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
 
-    HERE = Path(__file__).parent.absolute()  # Path to this file.
+    HERE = Path(__file__).parent.absolute() / ".."  # Path to this file.
     DATA_PATH = HERE / "data"  # Path to the data directory.
     RAY_TUNE_DIR = HERE / "ray_tune"  # Path to the ray tune directory.
     RAY_EXPERIMENT_DIR = (
