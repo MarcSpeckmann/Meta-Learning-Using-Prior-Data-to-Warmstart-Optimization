@@ -19,7 +19,6 @@ from ray.tune.schedulers import FIFOScheduler
 
 from src.model.classification_module import DeepWeedsClassificationModule
 from src.model.data_module import DeepWeedsDataModule
-from src.scheduler.dora import Dora
 from src.searcher.warmstart_searcher import WarmstartSearcher
 
 
@@ -168,14 +167,9 @@ def main() -> None:
             metadata_path=METADATA_FILE,
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
-            add_config_threshold=5,
+            add_config_threshold=MAX_EPOCHS,
         ),
-        scheduler=Dora(
-            time_attr="training_iteration",
-            max_t=MAX_EPOCHS,
-            seed=SEED,
-            # grace_period=2,
-        ),  # Its two times the max_epochs because ray tune counts the validation step as well
+        scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -266,13 +260,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = "Test_exp"  # Name of folder where the experiment is saved
+    EXPERIMENT_NAME = "EXPERIMENT_FIFO_WARMSTARTSEARCH_3"  # Name of folder where the experiment is saved
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
     TEST = True  # If True, the best model is tested.
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
-    SEED = 42  # Seed for reproducibility
+    SEED = 1143060359  # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
     WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.

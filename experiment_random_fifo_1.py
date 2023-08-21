@@ -17,9 +17,9 @@ from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 from ray.tune.schedulers import FIFOScheduler
 
-from classification_module import DeepWeedsClassificationModule
-from data_module import DeepWeedsDataModule
-from random_searcher import RandomSearcher
+from src.model.classification_module import DeepWeedsClassificationModule
+from src.model.data_module import DeepWeedsDataModule
+from src.searcher.random_searcher import RandomSearcher
 
 
 def objective(config: Configuration) -> None:
@@ -259,7 +259,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     EXPERIMENT_NAME = (
-        "Baseline_FIFO_RANDDOMSEARCH_1"  # Name of folder where the experiment is save
+        "EXPERIMENT_FIFO_RANDDOMSEARCH_1"  # Name of folder where the experiment is save
     )
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.

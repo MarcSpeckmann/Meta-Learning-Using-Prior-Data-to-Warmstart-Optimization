@@ -19,8 +19,7 @@ from ray.tune.schedulers import FIFOScheduler
 
 from src.model.classification_module import DeepWeedsClassificationModule
 from src.model.data_module import DeepWeedsDataModule
-from src.scheduler.dora import Dora
-from src.searcher.warmstart_searcher import WarmstartSearcher
+from src.searcher.random_searcher import RandomSearcher
 
 
 def objective(config: Configuration) -> None:
@@ -161,21 +160,14 @@ def main() -> None:
     # The num_samples is the number of trials we want to run. The time_budget_s is the time limit for the experiment.
     # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.TuneConfig.html#ray-tune-tuneconfig
     tune_config = tune.TuneConfig(
-        search_alg=WarmstartSearcher(
+        search_alg=RandomSearcher(
             config_space=config_space,
             metric=OPTIMIZATION_METRIC,
             mode=OPTIMIZATION_MODE,
-            metadata_path=METADATA_FILE,
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
-            add_config_threshold=5,
         ),
-        scheduler=Dora(
-            time_attr="training_iteration",
-            max_t=MAX_EPOCHS,
-            seed=SEED,
-            # grace_period=2,
-        ),  # Its two times the max_epochs because ray tune counts the validation step as well
+        scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -266,13 +258,15 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = "Test_exp"  # Name of folder where the experiment is saved
+    EXPERIMENT_NAME = (
+        "EXPERIMENT_FIFO_RANDDOMSEARCH_2"  # Name of folder where the experiment is save
+    )
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
     TEST = True  # If True, the best model is tested.
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
-    SEED = 42  # Seed for reproducibility
+    SEED = 255462424  # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
     WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.

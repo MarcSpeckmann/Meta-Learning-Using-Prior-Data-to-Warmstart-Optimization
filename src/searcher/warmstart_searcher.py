@@ -17,8 +17,8 @@ from ConfigSpace import (
 from ray import cloudpickle
 from ray.tune.search import UNDEFINED_METRIC_MODE, UNDEFINED_SEARCH_SPACE, Searcher
 
-from random_forest_surrogate_regressor import RandomForestSurrogateRegressor
-from warmstart_config import config_from_metadata
+from src.util.random_forest_surrogate_regressor import RandomForestSurrogateRegressor
+from src.util.warmstart_config import config_from_metadata
 
 
 class WarmstartSearcher(Searcher):

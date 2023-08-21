@@ -65,7 +65,6 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         datadir = Path(os.path.join(self.data_path, DEEP_WOODS_DEFAULT_DIR))
         tar_path = Path(os.path.join(datadir, DEEP_WOODS_DEFAULT_TARBALL_PATH))
 
-
         if not datadir.exists():
             datadir.mkdir(parents=True)
 
