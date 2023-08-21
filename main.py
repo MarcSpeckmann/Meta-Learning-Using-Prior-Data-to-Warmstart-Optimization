@@ -169,10 +169,7 @@ def main() -> None:
             max_concurrent=MAX_CONCURRENT_TRIALS,
             add_config_threshold=5,
         ),
-        scheduler=ASHAScheduler(
-            time_attr="training_iteration",
-            max_t=MAX_EPOCHS,
-        ),
+        scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
