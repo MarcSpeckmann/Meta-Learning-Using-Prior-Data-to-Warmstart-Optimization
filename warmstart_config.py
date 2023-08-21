@@ -66,8 +66,8 @@ def config_from_metadata(
         try:
             configs.append(Configuration(configuration_space=space, values=config_dict))
             metrics.append(1 - row["cost"])
-        except Exception as e:
-            logging.warning(f"Skipping config as not in space:\n{row}\n{e}")
+        except Exception as exception:
+            logging.warning(f"Skipping config as not in space:\n%s\n%s", row, exception)
 
     if len(configs) == 0:
         raise RuntimeError("No configs found that are representable in the space")

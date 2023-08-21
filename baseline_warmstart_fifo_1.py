@@ -19,7 +19,6 @@ from ray.tune.schedulers import FIFOScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
-from dora import Dora
 from warmstart_searcher import WarmstartSearcher
 
 
@@ -170,12 +169,7 @@ def main() -> None:
             max_concurrent=MAX_CONCURRENT_TRIALS,
             add_config_threshold=5,
         ),
-        scheduler=Dora(
-            time_attr="training_iteration",
-            max_t=2 * MAX_EPOCHS,
-            seed=SEED,
-            # grace_period=2,
-        ),  # Its two times the max_epochs because ray tune counts the validation step as well
+        scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -266,18 +260,18 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = "Test_exp"  # Name of folder where the experiment is saved
+    EXPERIMENT_NAME = "Baseline_FIFO_WARMSTARTSEARCH_1"  # Name of folder where the experiment is saved
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
     TEST = True  # If True, the best model is tested.
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
-    SEED = 42  # Seed for reproducibility
+    SEED = 1256870834  # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
     WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.
     IMG_SIZE = 32  # Image size to use for the model. (IMG_SIZE, IMG_SIZE)
-    MAX_CONCURRENT_TRIALS = 3  # Maximum number of trials to run concurrently.
+    MAX_CONCURRENT_TRIALS = 1  # Maximum number of trials to run concurrently.
     DATASET_WORKER_PER_TRIAL = 4  # Number of workers to use for DataLoader.
     CUDAS_PER_TRIAL = 1  # Number of GPUs to use for each trial.
     CPU_PER_TRIAL = 4  # Number of CPUs to use for each trial.
@@ -289,7 +283,7 @@ if __name__ == "__main__":
     OPTIMIZATION_METRIC = "val_accuracy_mean"  # Metric to optimize for.
     OPTIMIZATION_MODE = "max"  # Mode to optimize for.
     KEEP_N_BEST_MODELS = 1  # Number of best models to keep.
-    LOAD_DATA_ON_EVERY_TRIAL = True  # If True, the data is loaded for each trial. Used for distributed training.
+    LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
 
     HERE = Path(__file__).parent.absolute()  # Path to this file.
     DATA_PATH = HERE / "data"  # Path to the data directory.

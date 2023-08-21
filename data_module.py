@@ -65,7 +65,11 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         datadir = Path(os.path.join(self.data_path, DEEP_WOODS_DEFAULT_DIR))
         tar_path = Path(os.path.join(datadir, DEEP_WOODS_DEFAULT_TARBALL_PATH))
 
-        with FileLock("./.data.lock"):
+
+        if not datadir.exists():
+            datadir.mkdir(parents=True)
+
+        with FileLock(datadir / "data.lock"):
             if not datadir.exists():
                 datadir.mkdir(parents=True)
 
@@ -213,7 +217,6 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         Return:
             A :class:`torch.utils.data.DataLoader` or a sequence of them specifying prediction samples.
         """
-        pass
 
     def teardown(self, stage: str) -> None:
         """Called at the end of fit (train + validate), validate, test, or predict.
@@ -271,8 +274,8 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         logging.debug("Downloading from %s to %s", url, dest)
         dest.parent.mkdir(exist_ok=True, parents=True)
 
-        with urllib.request.urlopen(url) as response, open(dest, "wb") as f:
-            shutil.copyfileobj(response, f)
+        with urllib.request.urlopen(url) as response, open(dest, "wb") as file:
+            shutil.copyfileobj(response, file)
 
         logging.debug("Download finished at %s", dest)
         return dest

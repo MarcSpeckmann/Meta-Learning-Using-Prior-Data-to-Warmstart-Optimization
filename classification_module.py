@@ -2,9 +2,9 @@ from typing import Any
 
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+from torch import nn
 from torch.autograd import Variable
 
 
@@ -285,8 +285,10 @@ class DeepWeedsClassificationModule(pl.LightningModule):
         Returns:
             int: _description_
         """
-        channels, w, h = shape
-        var = Variable(torch.rand(1, channels, w, h))
+        channels, width, height = shape
+        # pylint: disable=E1101
+        var = Variable(torch.rand(1, channels, width, height))
+        # pylint: enable=E1101
 
         seq = torch.nn.Sequential()
         for layer in layers:
