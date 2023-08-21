@@ -37,6 +37,7 @@ class WarmstartSearcher(Searcher):
         mode: str,
         seed: int,
         max_concurrent: int = 0,
+        add_config_threshold: int = 5,
     ) -> None:
         super().__init__(metric=metric, mode=mode)
         self.search_space = config_space
@@ -46,6 +47,7 @@ class WarmstartSearcher(Searcher):
         self.results = {}
         self._max_concurrent = max_concurrent
         self.running = set()
+        self.add_config_threshold = add_config_threshold
 
         # Load the metadata file and convert it to a list of configurations
         self.warmstart_configs, self.warmstart_results = config_from_metadata(
@@ -198,12 +200,21 @@ class WarmstartSearcher(Searcher):
 
         """
         self.running.discard(trial_id)
-        self.results[trial_id] = result
 
-        self.optimizer.register(
-            params=self.configurations[trial_id],
-            target=result[self.metric],
-        )
+        if trial_id not in self.results:
+            self.results[trial_id] = [result]
+        else:
+            self.results[trial_id].append(result)
+
+        if not error and result["training_iteration"] > self.add_config_threshold:
+            max_metric = max(
+                [trial_result[self.metric] for trial_result in self.results[trial_id]]
+            )
+
+            self.optimizer.register(
+                params=self.configurations[trial_id],
+                target=max_metric,
+            )
 
     def save(self, checkpoint_path: str) -> None:
         """Save state to path for this search algorithm.
@@ -328,6 +339,10 @@ class WarmstartSearcher(Searcher):
                 subclass implementation to preprocess the result to
                 avoid breaking the optimization process.
         """
+        if trial_id not in self.results:
+            self.results[trial_id] = [result]
+        else:
+            self.results[trial_id].append(result)
 
 
 if __name__ == "__main__":
@@ -398,4 +413,6 @@ if __name__ == "__main__":
 
     for i in range(50):
         print(searcher.suggest(i))
-        searcher.on_trial_complete(i, {OPTIMIZATION_METRIC: i / 10})
+        searcher.on_trial_complete(
+            i, {OPTIMIZATION_METRIC: i / 10, "training_iteration": i}
+        )

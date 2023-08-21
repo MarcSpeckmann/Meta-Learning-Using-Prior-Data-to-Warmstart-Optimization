@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytorch_lightning as pl
@@ -13,11 +14,8 @@ from ConfigSpace import (
 )
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
-from ray.tune.integration.pytorch_lightning import (
-    TuneReportCallback,
-    TuneReportCheckpointCallback,
-)
-from ray.tune.schedulers import ASHAScheduler
+from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+from ray.tune.schedulers import FIFOScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
@@ -169,11 +167,9 @@ def main() -> None:
             metadata_path=METADATA_FILE,
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
+            add_config_threshold=5,
         ),
-        scheduler=ASHAScheduler(
-            time_attr="training_iteration",
-            max_t=MAX_EPOCHS,
-        ),
+        scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -224,12 +220,22 @@ def main() -> None:
         result_grid = tuner.get_results()
     best_result = result_grid.get_best_result()
 
-    print("Best hyperparameters found were: ", best_result.config)
+    print("\u2500" * os.get_terminal_size().columns)
+    print("Best result found were:")
+    print("\u2500" * os.get_terminal_size().columns)
+    print("Metrics:")
+    print(best_result.metrics)
+    print("\u2500" * os.get_terminal_size().columns)
+    print("Config:")
+    print(best_result.config)
+    print("\u2500" * os.get_terminal_size().columns)
 
     # Testing the best model from the hyperparameter tuning.
     if TEST:
         # Getting the checkpoint path to the best model.
-        checkpoint_path = best_result.best_checkpoints[0][0].path
+        checkpoint_path = best_result.get_best_checkpoint(
+            metric=OPTIMIZATION_METRIC, mode=OPTIMIZATION_MODE
+        ).path
 
         # Loading the best model using the checkpoint path.
         t_model = DeepWeedsClassificationModule.load_from_checkpoint(
@@ -267,9 +273,9 @@ if __name__ == "__main__":
     IMG_SIZE = 32  # Image size to use for the model. (IMG_SIZE, IMG_SIZE)
     MAX_CONCURRENT_TRIALS = 1  # Maximum number of trials to run concurrently.
     DATASET_WORKER_PER_TRIAL = 4  # Number of workers to use for DataLoader.
-    CUDAS_PER_TRIAL = 0  # Number of GPUs to use for each trial.
-    CPU_PER_TRIAL = 2  # Number of CPUs to use for each trial.
-    TRAIN_VAL_SPLIT = 0.1  # Validation split to use for the dataset.
+    CUDAS_PER_TRIAL = 1  # Number of GPUs to use for each trial.
+    CPU_PER_TRIAL = 4  # Number of CPUs to use for each trial.
+    TRAIN_VAL_SPLIT = 0.2  # Validation split to use for the dataset.
     BALANCED_DATASET = (
         True  # If 1, the dataset is balanced. Else the dataset is not balanced.
     )
@@ -285,7 +291,7 @@ if __name__ == "__main__":
     RAY_EXPERIMENT_DIR = (
         RAY_TUNE_DIR / EXPERIMENT_NAME
     )  # Path to the experiment directory.
-    CHECKPOINT_FILE_NAME = "checkpoint"  # Name of the checkpoint file.
+    CHECKPOINT_FILE_NAME = "checkpoint.ckpt"  # Name of the checkpoint file.
     METADATA_FILE = (
         HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
     )  # Path to the metadata file for warmstarting.
