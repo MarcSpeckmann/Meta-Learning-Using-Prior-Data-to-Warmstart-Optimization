@@ -172,9 +172,8 @@ def main() -> None:
         ),
         scheduler=ASHAScheduler(
             time_attr="training_iteration",
-            max_t=2 * MAX_EPOCHS,
-            grace_period=2,
-        ),  # Its two times the max_epochs because ray tune counts the validation step as well
+            max_t=MAX_EPOCHS,
+        ),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
