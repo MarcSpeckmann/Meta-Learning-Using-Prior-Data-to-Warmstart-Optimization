@@ -172,7 +172,7 @@ def main() -> None:
         ),
         scheduler=Dora(
             time_attr="training_iteration",
-            max_t=2 * MAX_EPOCHS,
+            max_t=MAX_EPOCHS,
             seed=SEED,
             # grace_period=2,
         ),  # Its two times the max_epochs because ray tune counts the validation step as well
