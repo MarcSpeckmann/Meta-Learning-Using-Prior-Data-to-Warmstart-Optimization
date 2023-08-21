@@ -289,7 +289,7 @@ if __name__ == "__main__":
     KEEP_N_BEST_MODELS = 1  # Number of best models to keep.
     LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
 
-    HERE = Path(__file__).parent.absolute() / ".."  # Path to this file.
+    HERE = Path(__file__).parent.absolute()  # Path to this file.
     DATA_PATH = HERE / "data"  # Path to the data directory.
     RAY_TUNE_DIR = HERE / "ray_tune"  # Path to the ray tune directory.
     RAY_EXPERIMENT_DIR = (
