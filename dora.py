@@ -59,8 +59,6 @@ class Dora(TrialScheduler):
     ) -> str:
         if result[self._time_attr] >= self._max_t:
             return TrialScheduler.STOP
-        if result["training_iteration"] % 2 == 1:
-            return TrialScheduler.CONTINUE
 
         if result["val_accuracy_mean"] > self._highest_accuracy:
             self._highest_accuracy = result["val_accuracy_mean"]
@@ -107,7 +105,7 @@ class Dora(TrialScheduler):
                 )
                 future_predictions = []
                 for future_iteration in range(
-                    config_df["training_iteration"][0] + 2, 41, 2
+                    config_df["training_iteration"][0] + 1, 21, 1
                 ):
                     future_config_df.at[0, "time_total_s"] = (
                         time_per_iteration * future_iteration
