@@ -16,10 +16,10 @@ from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 
-from classification_module import DeepWeedsClassificationModule
-from data_module import DeepWeedsDataModule
-from dora import Dora
-from random_searcher import RandomSearcher
+from src.model.classification_module import DeepWeedsClassificationModule
+from src.model.data_module import DeepWeedsDataModule
+from src.scheduler.dora import Dora
+from src.searcher.random_searcher import RandomSearcher
 
 
 def objective(config: Configuration) -> None:
@@ -263,14 +263,14 @@ def main() -> None:
 
 if __name__ == "__main__":
     EXPERIMENT_NAME = (
-        "EXPERIMENT_DORA_RANDDOMSEARCH_3"  # Name of folder where the experiment is save
+        "EXPERIMENT_DORA_RANDDOMSEARCH_2"  # Name of folder where the experiment is save
     )
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
     TEST = True  # If True, the best model is tested.
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
-    SEED = 1143060359  # Seed for reproducibility
+    SEED = 255462424  # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
     WALLTIME_LIMIT = 6 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.

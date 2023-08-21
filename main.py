@@ -17,10 +17,10 @@ from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 from ray.tune.schedulers import FIFOScheduler
 
-from classification_module import DeepWeedsClassificationModule
-from data_module import DeepWeedsDataModule
-from dora import Dora
-from warmstart_searcher import WarmstartSearcher
+from src.model.classification_module import DeepWeedsClassificationModule
+from src.model.data_module import DeepWeedsDataModule
+from src.scheduler.dora import Dora
+from src.searcher.warmstart_searcher import WarmstartSearcher
 
 
 def objective(config: Configuration) -> None:
