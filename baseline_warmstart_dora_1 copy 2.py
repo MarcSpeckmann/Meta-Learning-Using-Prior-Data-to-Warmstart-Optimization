@@ -15,10 +15,10 @@ from ConfigSpace import (
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
-from ray.tune.schedulers import FIFOScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
+from dora import Dora
 from warmstart_searcher import WarmstartSearcher
 
 
@@ -169,7 +169,11 @@ def main() -> None:
             max_concurrent=MAX_CONCURRENT_TRIALS,
             add_config_threshold=MAX_EPOCHS,
         ),
-        scheduler=FIFOScheduler(),
+        scheduler=Dora(
+            time_attr="training_iteration",
+            max_t=MAX_EPOCHS,
+            seed=SEED,
+        ),
         metric=OPTIMIZATION_METRIC,
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
@@ -260,7 +264,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = "Baseline_FIFO_WARMSTARTSEARCH_3"  # Name of folder where the experiment is saved
+    EXPERIMENT_NAME = (
+        "Baseline_DORA_WARMSTARTSEARCH_3"  # Name of folder where the experiment is save
+    )
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )

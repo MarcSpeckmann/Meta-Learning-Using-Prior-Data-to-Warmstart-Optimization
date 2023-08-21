@@ -167,7 +167,7 @@ def main() -> None:
             metadata_path=METADATA_FILE,
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
-            add_config_threshold=5,
+            add_config_threshold=MAX_EPOCHS,
         ),
         scheduler=FIFOScheduler(),
         metric=OPTIMIZATION_METRIC,
