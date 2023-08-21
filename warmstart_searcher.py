@@ -206,7 +206,7 @@ class WarmstartSearcher(Searcher):
         else:
             self.results[trial_id].append(result)
 
-        if not error and result["training_iteration"] < self.add_config_threshold:
+        if not error and result["training_iteration"] > self.add_config_threshold:
             max_metric = max(
                 [trial_result[self.metric] for trial_result in self.results[trial_id]]
             )
