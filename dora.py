@@ -10,7 +10,7 @@ from ray.tune.schedulers import TrialScheduler
 from sklearn.ensemble import RandomForestRegressor
 
 
-class ForestScheduler(TrialScheduler):
+class Dora(TrialScheduler):
     def __init__(
         self,
         time_attr: str = "training_iteration",

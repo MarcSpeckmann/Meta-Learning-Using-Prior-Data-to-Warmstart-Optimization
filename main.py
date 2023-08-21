@@ -22,7 +22,7 @@ from ray.tune.schedulers import ASHAScheduler
 
 from classification_module import DeepWeedsClassificationModule
 from data_module import DeepWeedsDataModule
-from forest_scheduler import ForestScheduler
+from dora import Dora
 from warmstart_searcher import WarmstartSearcher
 
 
@@ -177,7 +177,7 @@ def main() -> None:
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
         ),
-        scheduler=ForestScheduler(
+        scheduler=Dora(
             time_attr="training_iteration",
             max_t=2 * MAX_EPOCHS,
             seed=SEED,
