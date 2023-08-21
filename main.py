@@ -169,6 +169,7 @@ def main() -> None:
             metadata_path=METADATA_FILE,
             seed=SEED,
             max_concurrent=MAX_CONCURRENT_TRIALS,
+            add_config_threshold=5,
         ),
         scheduler=ASHAScheduler(
             time_attr="training_iteration",
@@ -267,8 +268,8 @@ if __name__ == "__main__":
     IMG_SIZE = 32  # Image size to use for the model. (IMG_SIZE, IMG_SIZE)
     MAX_CONCURRENT_TRIALS = 1  # Maximum number of trials to run concurrently.
     DATASET_WORKER_PER_TRIAL = 4  # Number of workers to use for DataLoader.
-    CUDAS_PER_TRIAL = 0  # Number of GPUs to use for each trial.
-    CPU_PER_TRIAL = 2  # Number of CPUs to use for each trial.
+    CUDAS_PER_TRIAL = 1  # Number of GPUs to use for each trial.
+    CPU_PER_TRIAL = 4  # Number of CPUs to use for each trial.
     TRAIN_VAL_SPLIT = 0.1  # Validation split to use for the dataset.
     BALANCED_DATASET = (
         True  # If 1, the dataset is balanced. Else the dataset is not balanced.
@@ -285,7 +286,7 @@ if __name__ == "__main__":
     RAY_EXPERIMENT_DIR = (
         RAY_TUNE_DIR / EXPERIMENT_NAME
     )  # Path to the experiment directory.
-    CHECKPOINT_FILE_NAME = "checkpoint"  # Name of the checkpoint file.
+    CHECKPOINT_FILE_NAME = "checkpoint.ckpt"  # Name of the checkpoint file.
     METADATA_FILE = (
         HERE / "metadata" / "deepweedsx_balanced-epochs-trimmed.csv"
     )  # Path to the metadata file for warmstarting.
