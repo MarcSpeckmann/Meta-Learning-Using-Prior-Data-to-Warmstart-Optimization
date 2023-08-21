@@ -60,25 +60,17 @@ def objective(config: Configuration) -> None:
         seed=SEED,
     )
 
-    # Creating the callbacks for the training. The TuneReportCallback is responsible for reporting the metrics to Ray Tune.
+    # Creating the callbacks for the training.
     # We need this callbacks to be able to use a (ASHA)Scheduler.
     # The TuneReportCheckpointCallback is responsible for saving the model checkpoints.
     callbacks = [
         # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.integration.pytorch_lightning.TuneReportCallback.html#ray.tune.integration.pytorch_lightning.TuneReportCallback
-        TuneReportCallback(
-            [
-                OPTIMIZATION_METRIC,
-            ],
-            on="validation_end",
-        ),
-        # https://docs.ray.io/en/latest/tune/api/doc/ray.tune.integration.pytorch_lightning.TuneReportCheckpointCallback.html#ray.tune.integration.pytorch_lightning.TuneReportCheckpointCallback
         TuneReportCheckpointCallback(
             metrics={OPTIMIZATION_METRIC},
             filename=CHECKPOINT_FILE_NAME,
             on="validation_end",
         ),
     ]
-
     # The trainer is responsible for the training and validation of the model.
     # As input we need to provide the model, the data module and the callbacks.
     # We also set the max_epochs to the maximum number of epochs we want to train.
@@ -86,11 +78,13 @@ def objective(config: Configuration) -> None:
     # https://lightning.ai/docs/pytorch/stable/common/trainer.html#
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
-        callbacks=callbacks,
         deterministic=True,
+        callbacks=callbacks,
         enable_progress_bar=False,
         enable_model_summary=False,
         num_sanity_val_steps=0,
+        logger=False,
+        enable_checkpointing=False,
     )
 
     # Starting the training of the model.
@@ -283,7 +277,7 @@ if __name__ == "__main__":
     NUM_CLASSES = 8  # Number of classes in the dataset.
     OPTIMIZATION_METRIC = "val_accuracy_mean"  # Metric to optimize for.
     OPTIMIZATION_MODE = "max"  # Mode to optimize for.
-    KEEP_N_BEST_MODELS = 2  # Number of best models to keep.
+    KEEP_N_BEST_MODELS = 1  # Number of best models to keep.
     LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
 
     HERE = Path(__file__).parent.absolute()  # Path to this file.
