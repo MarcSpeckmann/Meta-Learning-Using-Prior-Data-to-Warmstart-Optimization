@@ -260,7 +260,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    EXPERIMENT_NAME = "Test_exp"  # Name of folder where the experiment is save
+    EXPERIMENT_NAME = "Test_exp"  # Name of folder where the experiment is saved
     TRAIN = (
         True  # If True, the experiment is trained, else the best results are loaded.
     )
