@@ -49,10 +49,12 @@ class DeepWeedsDataModule(pl.LightningDataModule):
         # To allow the use of multiple workers for data loading, we need to use a temporary directory.
         # Especially when using multiple GPUs, the data loading can become a bottleneck.
         if self.hparams.load_data_on_every_trial:
-            self.temp_dir = tempfile.TemporaryDirectory()
-            self.data_path = Path(self.temp_dir.name)
-        else:
-            self.data_path = self.hparams.data_path
+            self.temp_dir = tempfile.TemporaryDirectory(
+                dir=".", prefix="deepweeds_data_"
+            )
+            self.temp_path = Path(self.temp_dir.name)
+
+        self.data_path = self.hparams.data_path
 
     def prepare_data(self):
         """Use this to download and prepare data. Downloading and saving data with multiple processes (distributed
@@ -75,6 +77,14 @@ class DeepWeedsDataModule(pl.LightningDataModule):
             self._download_deepweeds(url=DEEP_WOODS_LINK, dest=tar_path)
 
             self._unpack_tarball(tarball=tar_path, dest=datadir)
+
+            # copy the data to the temporary directory
+            if self.hparams.load_data_on_every_trial:
+                shutil.copytree(
+                    self.data_path, self.temp_path, symlinks=True, dirs_exist_ok=True
+                )
+
+                self.data_path = self.temp_path
 
     def setup(self, stage: str) -> None:
         """

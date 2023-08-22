@@ -20,6 +20,7 @@ from ray.tune.schedulers import FIFOScheduler
 from src.model.classification_module import DeepWeedsClassificationModule
 from src.model.data_module import DeepWeedsDataModule
 from src.searcher.warmstart_searcher import WarmstartSearcher
+from src.util.cleanup_callback import CleanupCallback
 
 
 def objective(config: Configuration) -> None:
@@ -190,6 +191,7 @@ def main() -> None:
         ),
         storage_path=RAY_TUNE_DIR,
         name=EXPERIMENT_NAME,
+        callbacks=[CleanupCallback()],
     )
 
     # Defining the trainable. The trainable is the function that is called for each trial.
@@ -250,7 +252,7 @@ def main() -> None:
             train_val_split=TRAIN_VAL_SPLIT,
             num_workers=DATASET_WORKER_PER_TRIAL,
             data_path=DATA_PATH,
-            load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
+            load_data_on_every_trial=False,
             seed=SEED,
         )
 
@@ -283,7 +285,9 @@ if __name__ == "__main__":
     OPTIMIZATION_METRIC = "val_accuracy_mean"  # Metric to optimize for.
     OPTIMIZATION_MODE = "max"  # Mode to optimize for.
     KEEP_N_BEST_MODELS = 1  # Number of best models to keep.
-    LOAD_DATA_ON_EVERY_TRIAL = False  # If True, the data is loaded for each trial. Used for distributed training.
+    LOAD_DATA_ON_EVERY_TRIAL = (
+        MAX_CONCURRENT_TRIALS > 1
+    )  # If True, the data is loaded for each trial. Used for distributed training.
 
     HERE = Path(__file__).parent.absolute()  # Path to this file.
     DATA_PATH = HERE / "data"  # Path to the data directory.
