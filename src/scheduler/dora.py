@@ -1,3 +1,4 @@
+import logging
 import math
 from typing import Dict, Optional
 
@@ -62,14 +63,16 @@ class Dora(TrialScheduler):
 
         if result["val_accuracy_mean"] > self._highest_accuracy:
             self._highest_accuracy = result["val_accuracy_mean"]
-            print("Highest val_accuracy_mean updated to: ", self._highest_accuracy)
+            logging.debug(
+                "Highest val_accuracy_mean updated to: ", self._highest_accuracy
+            )
 
         if self._fitting_task is not None:
             ready_tasks, _ = ray.wait([self._fitting_task], num_returns=1, timeout=0)
             if self._fitting_task in ready_tasks:
                 with FileLock("regressor.lock"):
                     self._regressor = ray.get(self._fitting_task)
-                    print("Regressor updated")
+                    logging.debug("Regressor updated")
                     self._regressor_fitted = True
                     with FileLock("just_trained.lock"):
                         self._just_trained = True
@@ -84,20 +87,20 @@ class Dora(TrialScheduler):
                     config_df.drop(["val_accuracy_mean"], axis=1)
                 )
             assert prediction is not None
-            print("Prediction: ", prediction[0])
-            print("Actual: ", config_df["val_accuracy_mean"][0])
+            logging.debug("Prediction: ", prediction[0])
+            logging.debug("Actual: ", config_df["val_accuracy_mean"][0])
 
             if not math.isclose(
                 prediction[0], config_df["val_accuracy_mean"][0], abs_tol=0.005
             ):
-                print(
+                logging.debug(
                     "Prediction too far off, continuing trial to learn more about the space"
                 )
                 if trial in self.grace_table:
                     self.grace_table[trial] = min(self.grace_table[trial] + 1, 2)
-                    print("Grace period extended to ", self.grace_table[trial])
+                    logging.debug("Grace period extended to ", self.grace_table[trial])
             else:
-                print("Prediction close enough, checking future")
+                logging.debug("Prediction close enough, checking future")
                 future_config_df = config_df.copy()
                 time_per_iteration = (
                     config_df.at[0, "time_total_s"]
@@ -119,25 +122,27 @@ class Dora(TrialScheduler):
                             )[0]
                         )
                 assert len(future_predictions) > 0
-                print("Future Predictions: ", future_predictions)
-                print("Max Future Prediction: ", max(future_predictions))
+                logging.debug("Future Predictions: ", future_predictions)
+                logging.debug("Max Future Prediction: ", max(future_predictions))
                 if max(future_predictions) > self._highest_accuracy:
-                    print("Predicting config to improve, continuing")
+                    logging.debug("Predicting config to improve, continuing")
                     if trial in self.grace_table:
                         self.grace_table[trial] = min(self.grace_table[trial] + 1, 2)
-                        print("Grace period extended to ", self.grace_table[trial])
+                        logging.debug(
+                            "Grace period extended to ", self.grace_table[trial]
+                        )
                 else:
-                    print(
+                    logging.debug(
                         "Predicting config to worsen or not improve, reducing grace period"
                     )
                     if trial in self.grace_table:
                         self.grace_table[trial] -= 1
                         if self.grace_table[trial] == 0:
-                            print("Grace period over, stopping trial")
+                            logging.debug("Grace period over, stopping trial")
                             action = TrialScheduler.STOP
                     else:
                         self.grace_table[trial] = 2
-                        print("Grace period started")
+                        logging.debug("Grace period started")
 
         # update performance metrics and update regressor
         with FileLock("trial_improvements.lock"):
@@ -148,7 +153,7 @@ class Dora(TrialScheduler):
                 ],
                 ignore_index=True,
             )
-            print(
+            logging.debug(
                 self._trial_improvements.size / len(self._trial_improvements.columns),
                 " trial information ready for regressor",
             )
@@ -191,7 +196,7 @@ class Dora(TrialScheduler):
 
     @ray.remote
     def train_regressor(self, data: pd.DataFrame):
-        print("Training regressor")
+        logging.debug("Training regressor")
         regressor = RandomForestRegressor(random_state=self._seed)
         return regressor.fit(
             data.drop(columns=["val_accuracy_mean"]),
