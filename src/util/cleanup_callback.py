@@ -23,12 +23,7 @@ class CleanupCallback(Callback):
             trial (Trial): Trial that just has been completed.
             **info: Kwargs dict for forward compatibility.
         """
-        print("HeeeOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
-        print(Path(trial.local_path))
-        print(list(Path(trial.local_path).glob("deepweeds_data_*")))
-
         for folder in Path(trial.local_path).glob("deepweeds_data_*"):
-            print(folder)
             shutil.rmtree(folder)
 
     def on_trial_error(self, iteration: int, trials: List[Trial], trial: Trial, **info):
@@ -44,5 +39,15 @@ class CleanupCallback(Callback):
             **info: Kwargs dict for forward compatibility.
         """
         for folder in Path(trial.local_path).glob("deepweeds_data_*"):
-            print(folder)
             shutil.rmtree(folder)
+
+    def on_experiment_end(self, trials: List["Trial"], **info):
+        """Called after experiment is over and all trials have concluded.
+
+        Arguments:
+            trials (List[Trials]): List of trials.
+            **info: Kwargs dict for forward compatibility.
+        """
+        for trial in trials:
+            for folder in Path(trial.local_path).glob("deepweeds_data_*"):
+                shutil.rmtree(folder)
