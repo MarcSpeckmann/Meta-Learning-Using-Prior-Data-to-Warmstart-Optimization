@@ -20,6 +20,7 @@ from src.model.classification_module import DeepWeedsClassificationModule
 from src.model.data_module import DeepWeedsDataModule
 from src.scheduler.dora import Dora
 from src.searcher.random_searcher import RandomSearcher
+from src.util.cleanup_callback import CleanupCallback
 
 
 def objective(config: Configuration) -> None:
@@ -37,7 +38,8 @@ def objective(config: Configuration) -> None:
     # Creating our data module. The data module is responsible for loading the data and creating the data loaders.
     # As input we need to provide the configuration of the current trials and some standard configs.
     # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningDataModule.html#lightning.pytorch.core.LightningDataModule
-    data_model = DeepWeedsDataModule(
+    data_model = DeepWeedsDataModule(:198
+
         **config,
         img_size=(IMG_SIZE, IMG_SIZE),
         balanced=BALANCED_DATASET,
@@ -192,6 +194,7 @@ def main() -> None:
         ),
         storage_path=RAY_TUNE_DIR,
         name=EXPERIMENT_NAME,
+        callbacks=[CleanupCallback()],
     )
 
     # Defining the trainable. The trainable is the function that is called for each trial.

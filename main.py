@@ -15,12 +15,12 @@ from ConfigSpace import (
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
-from ray.tune.schedulers import FIFOScheduler
 
 from src.model.classification_module import DeepWeedsClassificationModule
 from src.model.data_module import DeepWeedsDataModule
 from src.scheduler.dora import Dora
 from src.searcher.warmstart_searcher import WarmstartSearcher
+from src.util.cleanup_callback import CleanupCallback
 
 
 def objective(config: Configuration) -> None:
@@ -196,6 +196,7 @@ def main() -> None:
         ),
         storage_path=RAY_TUNE_DIR,
         name=EXPERIMENT_NAME,
+        callbacks=[CleanupCallback()],
     )
 
     # Defining the trainable. The trainable is the function that is called for each trial.

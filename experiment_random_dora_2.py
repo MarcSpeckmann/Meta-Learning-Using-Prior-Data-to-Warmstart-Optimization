@@ -20,6 +20,7 @@ from src.model.classification_module import DeepWeedsClassificationModule
 from src.model.data_module import DeepWeedsDataModule
 from src.scheduler.dora import Dora
 from src.searcher.random_searcher import RandomSearcher
+from src.util.cleanup_callback import CleanupCallback
 
 
 def objective(config: Configuration) -> None:
@@ -30,7 +31,8 @@ def objective(config: Configuration) -> None:
     """
     # Setting the precision to float32 for the matrix multiplication
     # This is needed for the GPU to work properly
-    torch.set_float32_matmul_precision("high")
+    torch.set_float32_matmul_precision("high"):197
+
     # Setting a seed for reproducibility.
     pl.seed_everything(SEED, workers=True)
 
@@ -192,6 +194,7 @@ def main() -> None:
         ),
         storage_path=RAY_TUNE_DIR,
         name=EXPERIMENT_NAME,
+        callbacks=[CleanupCallback()],
     )
 
     # Defining the trainable. The trainable is the function that is called for each trial.
