@@ -31,7 +31,7 @@ def objective(config: Configuration) -> None:
     """
     # Setting the precision to float32 for the matrix multiplication
     # This is needed for the GPU to work properly
-    torch.set_float32_matmul_precision("high"):197
+    torch.set_float32_matmul_precision("high")
 
     # Setting a seed for reproducibility.
     pl.seed_everything(SEED, workers=True)
@@ -255,7 +255,7 @@ def main() -> None:
             train_val_split=TRAIN_VAL_SPLIT,
             num_workers=DATASET_WORKER_PER_TRIAL,
             data_path=DATA_PATH,
-            load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
+            load_data_on_every_trial=False,
             seed=SEED,
         )
 

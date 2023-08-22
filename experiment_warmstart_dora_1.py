@@ -256,7 +256,7 @@ def main() -> None:
             train_val_split=TRAIN_VAL_SPLIT,
             num_workers=DATASET_WORKER_PER_TRIAL,
             data_path=DATA_PATH,
-            load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
+            load_data_on_every_trial=False,
             seed=SEED,
         )
 
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     RESUME = False  # If True, the experiment is resumed from a previous checkpoint. Else a new experiment is started.
     SEED = 1256870834  # Seed for reproducibility
     N_TRIALS = -1  # Number of trials to run. If -1, the number of trials is infinite.
-    WALLTIME_LIMIT = 2 * 60 * 60  # Time limit for the experiment in seconds. 6h
+    WALLTIME_LIMIT = 15  # 2 * 60 * 60  # Time limit for the experiment in seconds. 6h
     MAX_EPOCHS = 20  # Maximum number of epochs to train for.
     IMG_SIZE = 32  # Image size to use for the model. (IMG_SIZE, IMG_SIZE)
     MAX_CONCURRENT_TRIALS = 3  # Maximum number of trials to run concurrently.

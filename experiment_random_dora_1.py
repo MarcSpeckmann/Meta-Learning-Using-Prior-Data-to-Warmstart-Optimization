@@ -38,8 +38,7 @@ def objective(config: Configuration) -> None:
     # Creating our data module. The data module is responsible for loading the data and creating the data loaders.
     # As input we need to provide the configuration of the current trials and some standard configs.
     # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.LightningDataModule.html#lightning.pytorch.core.LightningDataModule
-    data_model = DeepWeedsDataModule(:198
-
+    data_model = DeepWeedsDataModule(
         **config,
         img_size=(IMG_SIZE, IMG_SIZE),
         balanced=BALANCED_DATASET,
@@ -255,7 +254,7 @@ def main() -> None:
             train_val_split=TRAIN_VAL_SPLIT,
             num_workers=DATASET_WORKER_PER_TRIAL,
             data_path=DATA_PATH,
-            load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
+            load_data_on_every_trial=False,
             seed=SEED,
         )
 

@@ -254,7 +254,7 @@ def main() -> None:
             train_val_split=TRAIN_VAL_SPLIT,
             num_workers=DATASET_WORKER_PER_TRIAL,
             data_path=DATA_PATH,
-            load_data_on_every_trial=LOAD_DATA_ON_EVERY_TRIAL,
+            load_data_on_every_trial=False,
             seed=SEED,
         )
 
