@@ -3,21 +3,12 @@ from typing import Any, Dict
 
 import pytorch_lightning as pl
 import torch
-from ConfigSpace import (
-    Categorical,
-    Configuration,
-    ConfigurationSpace,
-    Constant,
-    Float,
-    InCondition,
-    Integer,
-)
+from ConfigSpace import (Categorical, Configuration, ConfigurationSpace,
+                         Constant, Float, InCondition, Integer)
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import (
-    TuneReportCallback,
-    TuneReportCheckpointCallback,
-)
+    TuneReportCallback, TuneReportCheckpointCallback)
 from ray.tune.schedulers import ASHAScheduler
 
 from classification_module import DeepWeedsClassificationModule
@@ -185,6 +176,7 @@ def main() -> None:
         mode=OPTIMIZATION_MODE,
         num_samples=N_TRIALS,
         time_budget_s=WALLTIME_LIMIT,
+        reuse_actors=False,
     )
 
     # Defining the run configuration. The checkpoint_config is used to save the best models.
