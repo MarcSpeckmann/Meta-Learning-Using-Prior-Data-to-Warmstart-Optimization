@@ -12,6 +12,14 @@ from sklearn.ensemble import RandomForestRegressor
 
 
 class Dora(TrialScheduler):
+    """Dora TrialScheduler for Adaptive Fidelity Hyperparameter Tuning.
+
+    Args:
+        time_attr (str): Name of the attribute representing time in trials.
+        max_t (int): Maximum number of time units.
+        seed (int): Random seed for reproducibility.
+    """
+
     def __init__(
         self,
         time_attr: str = "training_iteration",
@@ -58,18 +66,32 @@ class Dora(TrialScheduler):
     def on_trial_result(
         self, trial_runner: "trial_runner.TrialRunner", trial: Trial, result: Dict
     ) -> str:
+        """Called when a trial produces a new result.
+
+        Args:
+            trial_runner (trial_runner.TrialRunner): The TrialRunner object.
+            trial (Trial): The trial generating the result.
+            result (Dict): The result dictionary produced by the trial.
+
+        Returns:
+            str: Action to be taken, e.g., `TrialScheduler.STOP`.
+        """
         if result[self._time_attr] >= self._max_t:
+            # If the trial has reached the maximum allowed time, stop it
             return TrialScheduler.STOP
 
         if result["val_accuracy_mean"] > self._highest_accuracy:
+            # Update the highest accuracy achieved
             self._highest_accuracy = result["val_accuracy_mean"]
             logging.debug(
                 "Highest val_accuracy_mean updated to: ", self._highest_accuracy
             )
 
         if self._fitting_task is not None:
+            # Check if the regressor fitting task is completed
             ready_tasks, _ = ray.wait([self._fitting_task], num_returns=1, timeout=0)
             if self._fitting_task in ready_tasks:
+                # Update the regressor with the fitted model
                 with FileLock("regressor.lock"):
                     self._regressor = ray.get(self._fitting_task)
                     logging.debug("Regressor updated")
@@ -80,7 +102,9 @@ class Dora(TrialScheduler):
 
         config_df = self.prepare_data(trial.config, result)
         action = TrialScheduler.CONTINUE
+
         if self._regressor_fitted:
+            # Make predictions with the regressor
             prediction = None
             with FileLock("regressor.lock"):
                 prediction = self._regressor.predict(
@@ -93,6 +117,7 @@ class Dora(TrialScheduler):
             if not math.isclose(
                 prediction[0], config_df["val_accuracy_mean"][0], abs_tol=0.005
             ):
+                # Continue the trial to explore the hyperparameter space more
                 logging.debug(
                     "Prediction too far off, continuing trial to learn more about the space"
                 )
@@ -100,6 +125,8 @@ class Dora(TrialScheduler):
                     self.grace_table[trial] = min(self.grace_table[trial] + 1, 2)
                     logging.debug("Grace period extended to ", self.grace_table[trial])
             else:
+                # Predict future accuracy and adjust the grace period
+                # based on predicted improvements
                 logging.debug("Prediction close enough, checking future")
                 future_config_df = config_df.copy()
                 time_per_iteration = (
@@ -144,7 +171,7 @@ class Dora(TrialScheduler):
                         self.grace_table[trial] = 2
                         logging.debug("Grace period started")
 
-        # update performance metrics and update regressor
+        # Update performance metrics and regressor
         with FileLock("trial_improvements.lock"):
             self._trial_improvements = pd.concat(
                 [
@@ -196,6 +223,14 @@ class Dora(TrialScheduler):
 
     @ray.remote
     def train_regressor(self, data: pd.DataFrame):
+        """Train a regressor using the given data concurrently.
+
+        Args:
+            data (pd.DataFrame): Data for training the regressor.
+
+        Returns:
+            RandomForestRegressor: Trained regressor.
+        """
         logging.debug("Training regressor")
         regressor = RandomForestRegressor(random_state=self._seed)
         return regressor.fit(
@@ -204,6 +239,15 @@ class Dora(TrialScheduler):
         )
 
     def prepare_data(self, config: dict, result: dict):
+        """Prepare data for training the regressor.
+
+        Args:
+            config (dict): Hyperparameter configuration.
+            result (dict): Trial result dictionary.
+
+        Returns:
+            pd.DataFrame: Prepared data for training the regressor.
+        """
         config_copy = config.copy()
         config_copy["training_iteration"] = result["training_iteration"]
         config_copy["time_total_s"] = result["time_total_s"]
