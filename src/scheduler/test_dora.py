@@ -1,10 +1,9 @@
-import random
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pandas as pd
-from dora import Dora
+from src.scheduler.dora import Dora
 from filelock import FileLock
 from ray.tune.execution import trial_runner
 from ray.tune.experiment import Trial
