@@ -44,6 +44,12 @@ python main.py
 
 For reproducing the experiments detailed on the poster run the specific `experiment_<searcher>_<scheduler>_<1,2,3>.py`
 
+The experiments were carried out on a computer with the following resources:
+- AMD EPYC 7543 32-Core Processor (But only using 4 cores, 4vCPU)
+- NVIDIA A100-SXM4-40GB
+- 528 GB RAM
+
+
 ### Results
 
 The test set accuracy will automatically be displayed after finishing the set runtime.
