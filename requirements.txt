@@ -5,3 +5,4 @@ torchvision==0.15.2
 bayesian-optimization==1.4.3
 pytest==7.4.0
 scikit-learn==1.3.0
+seaborn==0.12.2

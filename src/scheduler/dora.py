@@ -56,6 +56,7 @@ class Dora(TrialScheduler):
         self._fitting_task = None
         self._seed = seed
         self._highest_accuracy = 0
+        self._test = False
 
     def on_trial_add(self, trial_runner: "trial_runner.TrialRunner", trial: Trial):
         pass
@@ -87,7 +88,7 @@ class Dora(TrialScheduler):
                 "Highest val_accuracy_mean updated to: ", self._highest_accuracy
             )
 
-        if self._fitting_task is not None:
+        if self._fitting_task is not None and not self._test:
             # Check if the regressor fitting task is completed
             ready_tasks, _ = ray.wait([self._fitting_task], num_returns=1, timeout=0)
             if self._fitting_task in ready_tasks:
@@ -186,7 +187,7 @@ class Dora(TrialScheduler):
             )
             with FileLock("just_trained.lock"):
                 self._just_trained = False
-            if self._just_trained is False and self._fitting_task is None:
+            if self._just_trained is False and self._fitting_task is None and not self._test:
                 self._fitting_task = self.train_regressor.remote(
                     self, self._trial_improvements.copy()
                 )

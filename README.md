@@ -1,40 +1,55 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/T_Fzxg5j)
 # AutoML lecture 2023 (Freiburg & Hannover)
 ## Final Project
+Choice: Meta-Learning - Using prior data to warmstart optimization
 
-This repository contains all things needed for the final projects.
-The task is to optimize a NN by AutoML means.
-For details, please refer to the project PDF.
+This is our team's approach at finding a combination of search algorithm and multi-fidelity scheduler that performs well on the dataset `deepweeds`.
 
-###  Install
+The search algorithm is a Bayesian Optimizer that employs a random forest regressor as a surrogate model.
+This surrogate model is warmstarted on objective function evaluations that were supplied.
+
+The scheduler employs a prediction and grace period strategy to create unique adaptive fidelity behavior.
+
+## Installation
+
+Download the Repository
+
+```bash
+git clone https://github.com/MarcSpeckmann/Meta-Learning-Using-Prior-Data-to-Warmstart-Optimization.git
+```
 
 First you need to install [miniconda](https://docs.conda.io/en/latest/miniconda.html#system-requirements).
+
+Make sure there is no environment that is already named "automl"
 
 Subsequently, run these commands:
 ```bash
 make install
 ```
 
-### Data
-You need to pre-download all the data required by running `make download-data`.
+Activate the environment
+```bash
+conda activate automl
+```
 
-Stores by default in a `./data` directory. Takes under 20 seconds to download and extract.
+You may want to adjust the settings for how many concurrent trials to run and how many CPUs and GPUs to use per trial. These settings are found starting at line 281 in `main.py`
 
-### Tips
+Our test system was able to handle up to about 12 concurrent trials, with fractional resource allocations.
 
-All code we provide does consider validation and training sets.
-You will have to implement a method to use the test set yourself.
+Run the main experiment file
+```bash
+python main.py
+```
 
-#### `meta_learning_template.py`
-* Example of how to run SMAC.
-* Provides hints for how to extend SMAC to warmstart with meta-learning.
-* Provides code to read and parse the meta-data.
+### Experiments
 
-#### Plotting
-* We do not provide plotting scripts for the examples.
-  You are allowed to use everything you already know from the lecture.
-  We recommend to use 'matplotlib' or 'seaborn' for plotting.
-* To get an example of how to plot SMAC data (which we used in the example code), you can take a look at
-the [SMAC3 documentation](https://automl.github.io/SMAC3).
-  An example similar to our multi-fidelity example can be found [here](https://automl.github.io/SMAC3/v2.0.1/examples/2_multi_fidelity/1_mlp_epochs.html).
-* You are free to implement and use any other plotting scripts.
+For reproducing the experiments detailed on the poster run the specific `experiment_<searcher>_<scheduler>_<1,2,3>.py`
+
+The experiments were carried out on a computer with the following resources:
+- AMD EPYC 7543 32-Core Processor (But only using 4 cores, 4vCPU)
+- NVIDIA A100-SXM4-40GB
+- 528 GB RAM
+
+
+### Results
+
+The test set accuracy will automatically be displayed after finishing the set runtime.
