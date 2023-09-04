@@ -1,3 +1,5 @@
+*.lock
+
 *DeepWeeds_Images_256*
 deepweedsx
 *FashionMNIST*
