@@ -3,15 +3,8 @@ from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
-from ConfigSpace import (
-    Categorical,
-    Configuration,
-    ConfigurationSpace,
-    Constant,
-    Float,
-    InCondition,
-    Integer,
-)
+from ConfigSpace import (Categorical, Configuration, ConfigurationSpace,
+                         Constant, Float, InCondition, Integer)
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
